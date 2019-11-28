@@ -86,4 +86,4 @@ class WinRsRemote:
         print(output)
 
     def remoteWaitDeviceIsAwake(self):
-        return util.wait_for(lambda: self.connect(), "remoteDeviceIsAwake", "Ping %s" % self._host)
+        return util.wait_for(lambda: self.connect(), operation_name="remoteDeviceIsAwake", wait_name="Ping %s" % self._host)
