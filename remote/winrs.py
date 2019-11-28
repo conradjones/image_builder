@@ -13,12 +13,18 @@ def winRsGetWinstallFolder():
 
 class WinRsRemote:
 
-    def __init__(self, host, user, auth):
+    def __init__(self, *, host=None, user, auth):
         self._host = host
         self._user = user
         self._auth = auth
 
+    def set_host(self, host):
+        self._host = host
+
     def connect(self):
+        if self._host is None:
+            raise Exception('WinRsRemote host not set')
+
         self._client = Client(self._host, username=self._user, password=self._auth, ssl=False, connection_timeout=10)
         try:
             self._client.execute_cmd("ipconfig")
