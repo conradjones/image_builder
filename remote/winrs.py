@@ -4,12 +4,11 @@ import zipfile
 from util import util
 import tempfile
 
+
 def winRsGetWinstallFolder():
     script_dir = os.path.dirname(__file__)
     folder_path = os.path.join(script_dir, "winstall")
     return folder_path
-
-
 
 
 class WinRsRemote:
@@ -67,11 +66,12 @@ class WinRsRemote:
         self._client.copy(local_temp_zip, remote_zip)
         shutil.rmtree(local_temp_folder)
 
-        self._client.execute_ps("Expand-Archive -Path c:\\.winstall\\transfer\\%s.zip -Destination c:\\.winstall\\packages" % package_name)
+        self._client.execute_ps(
+            "Expand-Archive -Path c:\\.winstall\\transfer\\%s.zip -Destination c:\\.winstall\\packages" % package_name)
         self._client.execute_ps("Remove-Item -Path %s -Force" % remote_zip)
 
-
-        output, streams, had_errors = self._client.execute_ps("c:\\.winstall\\installer.ps1 -ComponentPath c:\\.winstall\\packages\\%s" % package_name)
+        output, streams, had_errors = self._client.execute_ps(
+            "c:\\.winstall\\installer.ps1 -ComponentPath c:\\.winstall\\packages\\%s" % package_name)
         if had_errors:
             error_str = ""
             for error in streams.error:
