@@ -35,6 +35,7 @@ class WindowsAutoInst:
         print(remote_temp_location)
         self._conn.run('mkdir %s' % remote_temp_location, hide=False)
         self._conn.put(winGetBootFloppyFileName('autounattend.xml'), remote_temp_location)
+        self._conn.put(winGetBootFloppyFileName('bootstrap.cmd'), remote_temp_location)
         self._conn.put(bootstrap_filename, remote_temp_location)
         self._conn.run('dd if=/dev/zero of=%s count=1440 bs=1k' % floppy_image_name, hide=False)
         self._conn.run('mkfs.msdos %s' % floppy_image_name)
