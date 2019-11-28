@@ -23,6 +23,7 @@ class WinRsRemote:
         self._client = Client(self._host, username=self._user, password=self._auth, ssl=False, connection_timeout=10)
         try:
             self._client.execute_cmd("ipconfig")
+            self._client.execute_ps("Get-Process")
         except BaseException as e:
             return False
 
