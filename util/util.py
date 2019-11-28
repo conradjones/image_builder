@@ -3,11 +3,10 @@ import os
 from contextlib import contextmanager
 
 
-def wait_for(condition, operation_name, wait_name):
+def wait_for(condition, *, time_out=120, operation_name, wait_name):
     counter = 0;
-    timeout = 120
     while not condition():
-        if counter >= timeout:
+        if counter >= time_out:
             return False
         counter += 1
         time.sleep(1)
