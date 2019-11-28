@@ -70,5 +70,4 @@ class LibVirtBackEnd:
         template = template.replace('${DISK_DRIVERS}', iso_drivers)
         template = template.replace('${MAC_ADDRESS}', mac_address)
         template = template.replace('${DISK_FLOPPY}', floppy)
-        print(template)
         self._conn.defineXML(template)
