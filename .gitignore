@@ -4,3 +4,4 @@ config.xml
 .DS_Store
 .idea/*
 scratch_file.py
+scratch/*
