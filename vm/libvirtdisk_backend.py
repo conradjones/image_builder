@@ -13,10 +13,14 @@ class LibVirtDiskBackEnd:
         #Implement me
         return True
 
-    def diskCreate(self, location, name, sizeGB):
+    def diskCreate(self, location, disk_name, sizeGB):
         if not self.diskValidateFreeSpace(location, sizeGB):
             raise Exception('Not enough free space in:%s' % location)
-        target_disk = os.path.join(location, name)
+        target_disk = os.path.join(location, disk_name)
         self._conn.run('qemu-img create -f qcow2 %s.qcow2 %sG' % (target_disk, sizeGB), hide=False)
         self._conn.run('chgrp kvm %s.qcow2' % target_disk)
         self._conn.run('chmod g+w %s.qcow2' % target_disk)
+
+    def diskDelete(self, location, disk_name):
+        target_disk = os.path.join(location, disk_name)
+        self._conn.run("rm %s.qcow2" % target_disk)
