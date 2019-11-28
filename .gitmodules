@@ -1,0 +1,3 @@
+[submodule "remote/winstall"]
+	path = remote/winstall
+	url = https://github.com/conradjones/winstall.git
