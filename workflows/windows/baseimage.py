@@ -4,6 +4,18 @@ import uuid
 from pingback import pingback
 
 
+def _guess_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
+
 def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, disk_location, size_gb, iso, iso_drivers, packages, *, keep_vm=False):
     with util.cleanup() as base_image_cleanup:
         vm_id = str(uuid.uuid1())
@@ -12,8 +24,8 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
         disk_backend.diskCreate(disk_location, vm_name, size_gb)
         base_image_cleanup.add(lambda: disk_backend.diskDelete(disk_location, vm_name))
 
-        host_name = socket.gethostname()
-        host_ip = socket.gethostbyname(host_name)
+        host_ip = _guess_local_ip()
+        print("buildImage:local ip %s" % host_ip)
 
         floppy = windows_autoinst.winCreateFloppy(disk_location, vm_name, host_ip)
         base_image_cleanup.add(lambda: windows_autoinst.winDeleteFloppy(disk_location, vm_name))
@@ -50,6 +62,12 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
         print('buildImage:installing Winstall')
         winrs.remoteInstallWinstall()
 
+        winrs.remoteInstallPackage('disable_windows_defender')
+
+        print('buildImage:rebooting device')
+        winrs.remoteReboot()
+
+        print('buildImage:installing packages')
         for package in packages:
             winrs.remoteInstallPackage(package)
 
