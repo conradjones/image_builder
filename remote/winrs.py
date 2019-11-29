@@ -70,6 +70,18 @@ class WinRsRemote:
         file = open(file_path, "r")
         return file.read()
 
+    def _remove_remote_folder(self, folder_name):
+        client = Client(self._host, username=self._user, password=self._auth, ssl=False, connection_timeout=10)
+        out, streams, had_errors = client.execute_ps(
+            "if (Test-Path -Path \"%s\" -Verbose ) { Remove-Item -Path \"%s\" -Recurse -Force -Verbose }"
+            % (folder_name, folder_name)
+        )
+        _print_stream(streams.verbose)
+        if had_errors:
+            _print_stream(streams.error)
+            raise Exception("_remove_remote_folder:error removing:%s" % folder_name)
+
+
     def _copy_package_to_remote(self, package_name):
         client = Client(self._host, username=self._user, password=self._auth, ssl=False, connection_timeout=10)
         with util.cleanup() as copy_package_cleanup:
@@ -92,9 +104,20 @@ class WinRsRemote:
     def _unzip_remote_package(self, remote_zip):
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
-            ps.add_cmdlet("Expand-Archive").add_parameter("Path", remote_zip).add_parameter("Destination", "c:\\.winstall\\packages")
-            ps.add_cmdlet("Remove-Item").add_parameter("Path", remote_zip).add_parameter("Force")
+            ps.add_cmdlet("Expand-Archive").add_parameter("Path", remote_zip)\
+                .add_parameter("Destination", "c:\\.winstall\\packages")\
+                .add_parameter("Verbose") \
+                .add_parameter("Force")
+
+            ps.add_cmdlet("Remove-Item")\
+                .add_parameter("Path", remote_zip) \
+                .add_parameter("Verbose") \
+                .add_parameter("Force")
+
             ps.invoke()
+            if ps.had_errors:
+                raise Exception("_unzip_remote_package:error unzipping:%s to %s" % (remote_zip , "c:\\.winstall\\packages"))
+            _print_stream(ps.streams.verbose)
 
     def remoteCreateWinstallRoot(self):
         ps_script = self._get_powershell_script('create_winstall_root.ps1')
@@ -108,18 +131,22 @@ class WinRsRemote:
 
     def remoteInstallPackage(self, package_name):
         print("remoteInstallPackage:%s" % package_name)
-        remote_zip = self._copy_package_to_remote(package_name)
-        self._unzip_remote_package(remote_zip)
 
         remote_path = "c:\\.winstall\\packages\\%s" % package_name
+
+        self._remove_remote_folder(remote_path)
+        remote_zip = self._copy_package_to_remote(package_name)
+        self._unzip_remote_package(remote_zip)
 
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
             ps.add_script(self._installer_script).add_parameter("ComponentPath", remote_path)
             ps.invoke()
             _output_powershell_streams(ps)
-            if ps.had_errors:
+            print("remoteInstallPackage:%s" % ps.output)
+            if ps.had_errors or ps.output == ['Fail']:
                 raise Exception("remoteInstallPackage:error installing: %s" % package_name)
+            return ps.output
 
     def remoteWaitDeviceIsAwake(self):
         return util.wait_for(lambda: self.connect(), operation_name="remoteDeviceIsAwake",
