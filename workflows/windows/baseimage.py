@@ -4,7 +4,7 @@ import uuid
 from pingback import pingback
 
 
-def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, disk_location, size_gb, iso, iso_drivers):
+def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, disk_location, size_gb, iso, iso_drivers, packages, *, keep_vm=False):
     with util.cleanup() as base_image_cleanup:
         vm_id = str(uuid.uuid1())
         vm_name = 'image_build-' + vm_id
@@ -22,29 +22,38 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
         vm_backend.vmCreate('WindowsTemplate', vm_name, iso, iso_drivers, mac_address, vm_id, disk_location, vm_name,
                          floppy)
 
-        base_image_cleanup.add(lambda: vm_backend.vmDelete(vm_name))
+        if not keep_vm:
+            base_image_cleanup.add(lambda: vm_backend.vmDelete(vm_name))
 
         vm_backend.vmPowerOn(vm_name)
-        base_image_cleanup.add(lambda: vm_backend.vmPowerOff(vm_name))
-        print('VM Started - waiting for ping back')
+        if not keep_vm:
+            base_image_cleanup.add(lambda: vm_backend.vmPowerOff(vm_name))
+        print('buildImage:waiting for ping back')
 
         pingback.start_server()
         base_image_cleanup.add(lambda: pingback.stop_server())
 
         if not util.wait_for(lambda: pingback.get_stored_ip(), time_out=600, operation_name="Waiting", wait_name="Pingback"):
-            print('Failed to get ping back')
+            print('buildImage:failed to get ping back')
             return False
 
         ip = pingback.get_stored_ip()
 
-        print("Got ping back from:%s" % ip)
+        print("buildImage:ping back from %s" % ip)
 
-        print('Waiting for winrs connection')
+        print('buildImage:waiting for winrs connection')
         winrs.set_host(ip)
         if not winrs.remoteWaitDeviceIsAwake():
-            print('failed to wait for device')
+            print('buildImage:failed to wait for device')
             return False
 
-        print('Installing Winstall')
+        print('buildImage:installing Winstall')
         winrs.remoteInstallWinstall()
+
+        for package in packages:
+            winrs.remoteInstallPackage(package)
+
+        input("buildImage:Press Enter to continue...")
+
+        return True
 

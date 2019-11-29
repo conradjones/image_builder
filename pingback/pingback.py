@@ -11,7 +11,6 @@ flask_app = Flask(__name__)
 
 @flask_app.route("/")
 def main():
-    print("main")
     global stored_ip
     with dataLock:
         stored_ip = request.remote_addr

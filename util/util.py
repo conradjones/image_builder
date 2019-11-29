@@ -35,7 +35,6 @@ class Cleanup:
         self._cleanup_items.append(cleanup_fn)
 
     def do_cleanup(self):
-        print("Cleanup manager")
         for cleanup_item in reversed(self._cleanup_items):
             cleanup_item()
 

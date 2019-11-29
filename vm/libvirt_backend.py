@@ -82,5 +82,3 @@ class LibVirtBackEnd:
         print("vmDelete:%s" % vm_name)
         dom = self.__get_vm(vm_name, throw=True)
         dom.undefine()
-        dom = None
-        util.wait_for(lambda: not self.vmExists(vm_name), operation_name="delete %s" % vm_name, wait_name="deleted state")
