@@ -5,6 +5,9 @@ from util import util
 import tempfile
 from pypsrp.powershell import PowerShell, RunspacePool
 from pypsrp.wsman import WSMan
+from pypsrp.shell import WinRS
+from pypsrp.shell import Process
+from pypsrp.shell import SignalCode
 
 
 def winRsGetWinstallFolder():
@@ -134,3 +137,17 @@ class WinRsRemote:
         print('remoteReboot:waiting for winrs connection')
         if not self.remoteWaitDeviceIsAwake():
             raise Exception("remoteReboot:error rebooting timed out waiting for restart")
+
+    def remoteSysprep(self, *, generalize=True, shutdown=True):
+        command = "c:\\Windows\\System32\\Sysprep\\Sysprep.exe /quiet"
+        command += " /generalize" if generalize else ""
+        command += " /shutdown" if shutdown else ""
+        command += " /oobe"
+        command += " /mode:vm"
+        with WinRS(self._client, environment=None) as shell:
+            process = Process(shell, command)
+            print(command)
+            process.invoke()
+            process.signal(SignalCode.CTRL_C)
+            if process.rc != 0:
+                raise Exception("remoteSysprep:error calling sysprep")
