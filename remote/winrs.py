@@ -46,6 +46,30 @@ class WinRsRemote:
         file = open(file_path, "r")
         return file.read()
 
+    def _copy_package_to_remote(self, package_name):
+        with util.cleanup() as copy_package_cleanup:
+            local_temp_folder = tempfile.mkdtemp()
+            copy_package_cleanup.add(lambda: os.rmdir(local_temp_folder))
+
+            local_temp_zip = os.path.join(local_temp_folder, package_name + '.zip')
+
+            with zipfile.ZipFile(local_temp_zip, 'w', zipfile.ZIP_DEFLATED) as zip_handle:
+                copy_package_cleanup.add(lambda: os.unlink(local_temp_zip))
+
+                with util.chdir(winRsGetWinstallFolder()):
+                    self._zip_dir(package_name, zip_handle)
+                zip_handle.close()
+
+                remote_zip = "c:\\.winstall\\transfer\\%s.zip" % package_name
+                self._client.copy(local_temp_zip, remote_zip)
+                return remote_zip
+
+    def _unzip_remote_package(self, remote_zip):
+        self._client.execute_ps(
+            "Expand-Archive -Path %s -Destination c:\\.winstall\\packages" % remote_zip)
+        self._client.execute_ps("Remove-Item -Path %s -Force" % remote_zip)
+
+
     def remoteCreateWinstallRoot(self):
         ps_script = self._get_powershell_script('create_winstall_root.ps1')
         output, streams, had_errors = self._client.execute_ps(ps_script)
@@ -56,24 +80,9 @@ class WinRsRemote:
         self._client.copy(os.path.join(winRsGetWinstallFolder(), 'installer.ps1'), 'c:\\.winstall\\installer.ps1')
 
     def remoteInstallPackage(self, package_name):
-        local_temp_folder = tempfile.mkdtemp()
 
-        local_temp_zip = os.path.join(local_temp_folder, package_name + '.zip')
-
-        zip_handle = zipfile.ZipFile(local_temp_zip, 'w', zipfile.ZIP_DEFLATED)
-
-        with util.chdir(winRsGetWinstallFolder()):
-            self._zip_dir(package_name, zip_handle)
-        zip_handle.close()
-
-        remote_zip = "c:\\.winstall\\transfer\\%s.zip" % package_name
-
-        self._client.copy(local_temp_zip, remote_zip)
-        shutil.rmtree(local_temp_folder)
-
-        self._client.execute_ps(
-            "Expand-Archive -Path c:\\.winstall\\transfer\\%s.zip -Destination c:\\.winstall\\packages" % package_name)
-        self._client.execute_ps("Remove-Item -Path %s -Force" % remote_zip)
+        remote_zip = self._copy_package_to_remote(package_name)
+        self._unzip_remote_package(remote_zip)
 
         output, streams, had_errors = self._client.execute_ps(
             "c:\\.winstall\\installer.ps1 -ComponentPath c:\\.winstall\\packages\\%s" % package_name)
