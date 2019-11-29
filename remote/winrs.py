@@ -56,13 +56,12 @@ class WinRsRemote:
         self._client.copy(os.path.join(winRsGetWinstallFolder(), 'installer.ps1'), 'c:\\.winstall\\installer.ps1')
 
     def remoteInstallPackage(self, package_name):
-        local_package_folder = os.path.join(winRsGetWinstallFolder(), package_name)
         local_temp_folder = tempfile.mkdtemp()
 
         local_temp_zip = os.path.join(local_temp_folder, package_name + '.zip')
 
         zip_handle = zipfile.ZipFile(local_temp_zip, 'w', zipfile.ZIP_DEFLATED)
-        print(winRsGetWinstallFolder())
+
         with util.chdir(winRsGetWinstallFolder()):
             self._zip_dir(package_name, zip_handle)
         zip_handle.close()
