@@ -62,9 +62,9 @@
       <driver name="qemu" type="qcow2"/>
       <source file="${DISK_SYSTEM}"/>
       <backingStore/>
-      <target dev="sda" bus="sata"/>
+      <target dev="vda" bus="virtio"/>
       <boot order="1"/>
-      <address type="drive" controller="0" bus="0" target="0" unit="0"/>
+      <address type="pci" controller="0" bus="0" target="0" unit="0"/>
     </disk>
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
@@ -145,7 +145,7 @@
     <interface type="bridge">
       <mac address="${MAC_ADDRESS}"/>
       <source bridge="br0"/>
-      <model type="e1000e"/>
+      <model type="virtio"/>
       <address type="pci" domain="0x0000" bus="0x01" slot="0x00" function="0x0"/>
     </interface>
     <serial type="pty">
