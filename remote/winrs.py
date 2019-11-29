@@ -44,8 +44,8 @@ class WinRsRemote:
             raise Exception('WinRsRemote host not set')
 
         try:
-            self._client = WSMan(self._host, auth="basic", username=self._user, password=self._auth,
-                                 ssl=False, connection_timeout=10, encryption='never')
+            self._client = WSMan(self._host, auth="negotiate", username=self._user, password=self._auth,
+                                 ssl=False, connection_timeout=10)
             with RunspacePool(self._client) as pool:
                 ps = PowerShell(pool)
                 ps.add_cmdlet("Get-Process")
@@ -118,7 +118,19 @@ class WinRsRemote:
             if ps.had_errors:
                 raise Exception("remoteInstallPackage:error installing: %s" % package_name)
 
-
     def remoteWaitDeviceIsAwake(self):
         return util.wait_for(lambda: self.connect(), operation_name="remoteDeviceIsAwake",
                              wait_name="Ping %s" % self._host)
+
+    def remoteReboot(self):
+        with RunspacePool(self._client) as pool:
+            ps = PowerShell(pool)
+            ps.add_cmdlet("Restart-Computer").add_parameter("Force")
+            ps.invoke()
+            _output_powershell_streams(ps)
+            if ps.had_errors:
+                raise Exception("remoteReboot:error rebooting")
+
+        print('remoteReboot:waiting for winrs connection')
+        if not self.remoteWaitDeviceIsAwake():
+            raise Exception("remoteReboot:error rebooting timed out waiting for restart")
