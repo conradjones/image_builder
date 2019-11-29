@@ -62,7 +62,7 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
         print('buildImage:installing Winstall')
         winrs.remoteInstallWinstall()
 
-        winrs.remoteInstallPackage('disable_windows_defender')
+        winrs.remoteInstallPackage('windows_defender_disable')
 
         print('buildImage:rebooting device')
         winrs.remoteReboot()
