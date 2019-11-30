@@ -48,7 +48,7 @@ class WinRsRemote:
 
         try:
             self._client = WSMan(self._host, auth="negotiate", username=self._user, password=self._auth,
-                                 ssl=False, connection_timeout=10)
+                                 ssl=False, connection_timeout=10, read_timeout=900)
             with RunspacePool(self._client) as pool:
                 ps = PowerShell(pool)
                 ps.add_cmdlet("Get-Process")
@@ -134,16 +134,18 @@ class WinRsRemote:
 
         remote_path = "c:\\.winstall\\packages\\%s" % package_name
 
+        print("remoteInstallPackage:copying package remotely")
         self._remove_remote_folder(remote_path)
         remote_zip = self._copy_package_to_remote(package_name)
         self._unzip_remote_package(remote_zip)
 
+        print("remoteInstallPackage:executing installation")
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
             ps.add_script(self._installer_script).add_parameter("ComponentPath", remote_path)
             ps.invoke()
             _output_powershell_streams(ps)
-            print("remoteInstallPackage:%s" % ps.output)
+            print("remoteInstallPackage:%s" % ps.output )
             if ps.had_errors or ps.output == ['Fail']:
                 raise Exception("remoteInstallPackage:error installing: %s" % package_name)
             return ps.output
