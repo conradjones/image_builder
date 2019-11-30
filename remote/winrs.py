@@ -129,7 +129,7 @@ class WinRsRemote:
     def remoteInstallWinstall(self):
         self.remoteCreateWinstallRoot()
 
-    def remoteInstallPackage(self, package_name):
+    def remoteInstallPackage(self, package_name, *, no_reboot=False):
         print("remoteInstallPackage:%s" % package_name)
 
         remote_path = "c:\\.winstall\\packages\\%s" % package_name
@@ -142,12 +142,35 @@ class WinRsRemote:
         print("remoteInstallPackage:executing installation")
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
-            ps.add_script(self._installer_script).add_parameter("ComponentPath", remote_path)
+            ps.add_script(self._installer_script)\
+                .add_parameter("ComponentPath", remote_path)
+
             ps.invoke()
             _output_powershell_streams(ps)
             print("remoteInstallPackage:%s" % ps.output )
             if ps.had_errors or ps.output == ['Fail']:
                 raise Exception("remoteInstallPackage:error installing: %s" % package_name)
+
+            if ps.output == ['Reboot']:
+                if no_reboot:
+                    return ps.output
+
+        self.remoteReboot()
+
+        print("remoteInstallPackage:validating")
+        with RunspacePool(self._client) as pool:
+            ps = PowerShell(pool)
+            ps.add_script(self._installer_script) \
+                .add_parameter("ComponentPath", remote_path) \
+                .add_parameter("DetectOnly", True)
+
+            ps.invoke()
+            _output_powershell_streams(ps)
+            print("remoteInstallPackage:%s" % ps.output)
+            if ps.had_errors or ps.output == ['Fail']:
+                raise Exception("remoteInstallPackage:error validating post reboot: %s" % package_name)
+
+            # Check for reboot here......
             return ps.output
 
     def remoteWaitDeviceIsAwake(self):
