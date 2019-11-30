@@ -69,7 +69,12 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
 
         print('buildImage:installing packages')
         for package in packages:
-            winrs.remoteInstallPackage(package)
+            result = winrs.remoteInstallPackage(package)
+            if "Reboot" not in result:
+                continue
+
+            print('buildImage:reboot required, rebooting....')
+            winrs.remoteReboot()
 
         input("buildImage:Press Enter to continue...")
 
