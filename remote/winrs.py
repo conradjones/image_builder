@@ -140,6 +140,7 @@ class WinRsRemote:
         self._unzip_remote_package(remote_zip)
 
         print("remoteInstallPackage:executing installation")
+
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
             ps.add_script(self._installer_script)\
@@ -151,9 +152,10 @@ class WinRsRemote:
             if ps.had_errors or ps.output == ['Fail']:
                 raise Exception("remoteInstallPackage:error installing: %s" % package_name)
 
-            if ps.output == ['Reboot']:
-                if no_reboot:
-                    return ps.output
+            output = ps.output
+
+        if no_reboot or output != ['Reboot']:
+            return ps.output
 
         self.remoteReboot()
 
@@ -170,7 +172,6 @@ class WinRsRemote:
             if ps.had_errors or ps.output == ['Fail']:
                 raise Exception("remoteInstallPackage:error validating post reboot: %s" % package_name)
 
-            # Check for reboot here......
             return ps.output
 
     def remoteWaitDeviceIsAwake(self):
