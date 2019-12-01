@@ -18,3 +18,12 @@ class SSH:
 
     def put(self, source, dest):
         self._conn.put(source, dest)
+
+    def mkdir(self, folder):
+        self.execute_process(["mkdir", folder])
+
+    def rmdir(self, folder, recurse=False):
+        if recurse:
+            self.execute_process(['rmdir', '-rf', folder])
+        else:
+            self.execute_process(['rmdir', folder])

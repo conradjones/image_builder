@@ -1,6 +1,6 @@
 import subprocess
 import shutil
-
+import os
 
 class LocalShell:
     def execute_process(self, args, ignore_exit=False):
@@ -15,3 +15,12 @@ class LocalShell:
 
     def put(self, source, dest):
         shutil.copy(source, dest)
+
+    def mkdir(self, folder):
+        os.mkdir(folder)
+
+    def rmdir(self, folder, recurse=False):
+        if recurse:
+            shutil.rmtree(folder)
+        else:
+            os.rmdir(folder)
