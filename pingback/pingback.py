@@ -9,11 +9,11 @@ stored_ip = None
 thread = None
 flask_app = Flask(__name__)
 
-@flask_app.route("/")
-def main():
+@flask_app.route("/pingback/<ipaddress>")
+def pingback(ipaddress):
     global stored_ip
     with dataLock:
-        stored_ip = request.remote_addr
+        stored_ip = ipaddress
     return "Hello"
 
 def get_stored_ip():
