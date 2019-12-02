@@ -29,7 +29,7 @@ mounted, starts the virtual machine which boots from the iso and starts the wind
 Imagebuilder then waits until it is able to connect to the virtual machine via WinRS to automate the 
 installation of software components.
 
-Imagebuilder knows the IP address of the virtual machine to connect via WinRS as, as part of the 
+Imagebuilder knows the IP address of the virtual machine to connect via WinRS because; as part of the 
 creation process it creates a floppy image which contains an autounattend.xml file to automate 
 the installation of windows, and bootstrap.ps1 which sends a http request back to machine running 
 image builder containing the IP Address of the guest virtual machine.
