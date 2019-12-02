@@ -1,13 +1,14 @@
 import os
-import fabric
 
 
 class LibVirtDiskBackEnd:
 
-    def __init__(self, conn_string):
-        self._conn = fabric.Connection(conn_string)
-        if self._conn is None:
-            raise Exception('Failed to connect to :%s' % conn_string)
+    def __init__(self, *, shell, group=None, perms=None):
+        self._shell = shell
+        self._perms = perms
+        self._group = group
+        if self._shell is None:
+            raise Exception('Require a shell')
 
     def diskValidateFreeSpace(self, location, sizeGB):
         #Implement me
@@ -16,11 +17,15 @@ class LibVirtDiskBackEnd:
     def diskCreate(self, location, disk_name, sizeGB):
         if not self.diskValidateFreeSpace(location, sizeGB):
             raise Exception('Not enough free space in:%s' % location)
-        target_disk = os.path.join(location, disk_name)
-        self._conn.run('qemu-img create -f qcow2 %s.qcow2 %sG' % (target_disk, sizeGB), hide=False)
-        self._conn.run('chgrp kvm %s.qcow2' % target_disk)
-        self._conn.run('chmod g+w %s.qcow2' % target_disk)
+        target_disk = os.path.join(location, "%s.qcow2" % disk_name)
+        self._shell.execute_process(['qemu-img', 'create', '-f', 'qcow2', target_disk, '%sG' % sizeGB])
+
+        if self._group:
+            self._shell.execute_process(['chgrp', self._group, target_disk])
+
+        if self._perms:
+            self._shell.execute_process(['chmod', self._perms, target_disk])
 
     def diskDelete(self, location, disk_name):
         target_disk = os.path.join(location, disk_name)
-        self._conn.run("rm %s.qcow2" % target_disk)
+        self._shell.execute_process(['rm',  '%s.qcow2' % target_disk])

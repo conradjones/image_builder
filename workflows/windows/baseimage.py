@@ -31,15 +31,18 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
         base_image_cleanup.add(lambda: windows_autoinst.winDeleteFloppy(disk_location, vm_name))
 
         mac_address = 'FA:FA:FA:FA:FA:FA'
-        vm_backend.vmCreate('WindowsTemplate', vm_name, iso, iso_drivers, mac_address, vm_id, disk_location, vm_name,
-                         floppy)
+        '''template_name, vm_name, vm_location, iso, iso_drivers, mac_address, id, disk_location,
+                 disk_name, floppy'''
+        vm = vm_backend.vmCreate(template_name='WindowsTemplate', vm_location=disk_location, vm_name=vm_name, iso=iso, iso_drivers=iso_drivers,
+                            mac_address=mac_address, id=vm_id, disk_location=disk_location, disk_name=vm_name,
+                         floppy=floppy)
 
         if not keep_vm:
-            base_image_cleanup.add(lambda: vm_backend.vmDelete(vm_name))
+            base_image_cleanup.add(lambda: vm.vmDelete())
 
-        vm_backend.vmPowerOn(vm_name)
+        vm.vmPowerOn()
         if not keep_vm:
-            base_image_cleanup.add(lambda: vm_backend.vmPowerOff(vm_name))
+            base_image_cleanup.add(lambda: vm.vmPowerOff())
         print('buildImage:waiting for ping back')
 
         pingback.start_server()
@@ -61,11 +64,6 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
 
         print('buildImage:installing Winstall')
         winrs.remoteInstallWinstall()
-
-        winrs.remoteInstallPackage('windows_defender_disable')
-
-        print('buildImage:rebooting device')
-        winrs.remoteReboot()
 
         print('buildImage:installing packages')
         for package in packages:
