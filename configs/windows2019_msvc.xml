@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Build>
+    <Shell>Local</Shell>
+    <Hypervisor>
+        <Type>Fusion</Type>
+    </Hypervisor>
+    <Disk>
+        <Type>VDiskManager</Type>
+    </Disk>
+    <Image>
+        <Source>
+            <ISO>~/iso/17763.253.190108-0006.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso</ISO>
+        </Source>
+        <Administrator>
+            <Password>*</Password>
+        </Administrator>
+        <Packages>
+            <Package>remote_desktop_enable</Package>
+            <Package>remote_desktop_disable_nla</Package>
+            <Package>vmware_tools</Package>
+            <Package>git</Package>
+            <Package>cmake</Package>
+            <Package>conan</Package>
+            <Package>dotnet35_server2019</Package>
+            <Package>wix</Package>
+            <Package>bazel</Package>
+            <Package>git</Package>
+            <Package>msys2</Package>
+            <Package>python3</Package>
+            <Package>vs2019_buildtools</Package>
+            <Package>vs2019_buildtools_winxp</Package>
+        </Packages>
+    </Image>
+</Build>
