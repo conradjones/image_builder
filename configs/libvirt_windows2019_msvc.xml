@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Build>
+    <Shell>SSH</Shell>
+    <ShellAddress>virtuser@10.10.10.10</ShellAddress>
+    <Hypervisor>
+        <Type>LibVirt</Type>
+        <URI>qemu+ssh://virtuser@10.10.10.10/system?socket=/var/run/libvirt/libvirt-sock</URI>
+    </Hypervisor>
+    <Disk>
+        <Type>LibVirtDisk</Type>
+        <Location>/path/to/the/files</Location>
+        <Group>kvm</Group>
+        <Perms>g+w</Perms>
+    </Disk>
+    <Image>
+        <Source>
+            <Template>WindowsTemplate</Template>
+            <ISO>/path/to/the/files/17763.253.190108-0006.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso</ISO>
+            <ISODrivers>/path/to/the/files/virtio-win-0.1.171.iso</ISODrivers>
+        </Source>
+        <Administrator>
+            <Password>.MyPassword1_</Password>
+        </Administrator>
+        <Remote>WinRS</Remote>
+        <Packages>
+            <Package>remote_desktop_enable</Package>
+            <Package>remote_desktop_disable_nla</Package>
+            <Package>git</Package>
+            <Package>cmake</Package>
+            <Package>conan</Package>
+            <Package>dotnet35_server2019</Package>
+            <Package>wix</Package>
+            <Package>bazel</Package>
+            <Package>git</Package>
+            <Package>msys2</Package>
+            <Package>python3</Package>
+            <Package>vs2019_buildtools</Package>
+            <Package>vs2019_buildtools_winxp</Package>
+        </Packages>
+    </Image>
+</Build>

@@ -6,14 +6,18 @@
     </Hypervisor>
     <Disk>
         <Type>VDiskManager</Type>
+        <Location>/Users/conrad/VMRun</Location>
     </Disk>
     <Image>
         <Source>
-            <ISO>~/iso/17763.253.190108-0006.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso</ISO>
+            <Template>WindowsTemplate</Template>
+            <ISO>/Users/conrad/iso/17763.253.190108-0006.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso</ISO>
+            <ISODrivers>/Applications/VMware Fusion.app/Contents/Library/isoimages/windows.iso</ISODrivers>
         </Source>
         <Administrator>
-            <Password>*</Password>
+            <Password>.MyPassword1_</Password>
         </Administrator>
+        <Remote>WinRS</Remote>
         <Packages>
             <Package>remote_desktop_enable</Package>
             <Package>remote_desktop_disable_nla</Package>
