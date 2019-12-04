@@ -70,12 +70,13 @@ class LibVirtBackEnd:
         file = open(file_path, "r")
         return file.read()
 
-    def vmCreate(self, template_name, vm_name, vm_location, iso, iso_drivers, mac_address, id, disk_location, disk_name, floppy):
+    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, id, disk_system,
+                 floppy):
         print("vmCreate:%s" % vm_name)
         template = self.vmGetTemplate(template_name)
         template = template.replace('${DOMAIN_NAME}', vm_name)
         template = template.replace('${DOMAIN_UUID}', id)
-        template = template.replace('${DISK_SYSTEM}', os.path.join(disk_location, disk_name) + '.qcow2')
+        template = template.replace('${DISK_SYSTEM}', disk_system)
         template = template.replace('${DISK_ISO}', iso)
         template = template.replace('${DISK_DRIVERS}', iso_drivers)
         template = template.replace('${MAC_ADDRESS}', mac_address)

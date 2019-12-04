@@ -6,21 +6,42 @@ _vdiskmanager = "/Applications/VMware Fusion.app/Contents/Library/vmware-vdiskma
 
 class VMwareVDiskManagerBackend:
 
-    def __init__(self, shell):
+    def __init__(self, *, shell, location):
         self._shell = shell
+        self._perms = None
+        self._group = None
+        self._location = location
 
-    def diskValidateFreeSpace(self, location, sizeGB):
+    def diskValidateFreeSpace(self, location, size_gb):
         # Implement me
         return True
 
-    def diskCreate(self, location, disk_name, sizeGB):
-        if not self.diskValidateFreeSpace(location, sizeGB):
-            raise Exception('Not enough free space in:%s' % location)
-        target_disk = os.path.join(location, disk_name + ".vmdk")
+    def diskCreate(self, *, disk_name, size_gb):
+        if not self.diskValidateFreeSpace(self._location, size_gb):
+            raise Exception('Not enough free space in:%s' % self._location)
+        target_disk = os.path.join(self._location, disk_name + ".vmdk")
 
         self._shell.execute_process(
-            [_vdiskmanager, '-c', '-t', '0', '-s', '%sGB' % sizeGB, '-a', 'lsilogic', target_disk])
+            [_vdiskmanager, '-c', '-t', '0', '-s', '%sGB' % size_gb, '-a', 'lsilogic', target_disk])
 
-    def diskDelete(self, location, disk_name):
-        target_disk = os.path.join(location, disk_name)
+        return target_disk
+
+    def diskDelete(self, disk_name):
+        target_disk = os.path.join(self._location, disk_name)
         self._shell.execute_process(['rm', '%s.vmdk' % target_disk])
+
+    @property
+    def location(self):
+        return self._location
+
+    @property
+    def location(self):
+        return self._location
+
+    @property
+    def perms(self):
+        return self._perms
+
+    @property
+    def group(self):
+        return self._group

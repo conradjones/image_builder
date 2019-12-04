@@ -1,7 +1,7 @@
 import time
 import os
 from contextlib import contextmanager
-
+import socket
 
 def wait_for(condition, *, time_out=120, operation_name, wait_name):
     counter = 0;
@@ -46,3 +46,15 @@ def cleanup():
         yield cleanup_manager
     finally:
         cleanup_manager.do_cleanup()
+
+
+def guess_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip

@@ -78,8 +78,8 @@ class VMwareVMRunBackend:
         vmx_file_path = os.path.join(vm_location, vm_name, '%s.vmx' % vm_name)
         return os.path.isfile(vmx_file_path)
 
-    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, id, disk_location,
-                 disk_name, floppy):
+    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, id, disk_system,
+                 floppy):
 
         vm_run_folder = _vm_run_folder(vm_location, vm_name)
         self._shell.mkdir(vm_run_folder)
@@ -88,7 +88,7 @@ class VMwareVMRunBackend:
         template = vmGetTemplate(template_name)
         template = template.replace('${VM_NAME}', vm_name)
         template = template.replace('${DOMAIN_UUID}', id)
-        template = template.replace('${DISK_SYSTEM}', os.path.join(disk_location, disk_name) + '.vmdk')
+        template = template.replace('${DISK_SYSTEM}', disk_system)
         template = template.replace('${DISK_ISO}', iso)
         template = template.replace('${DISK_DRIVERS}', iso_drivers)
         template = template.replace('${MAC_ADDRESS}', mac_address)

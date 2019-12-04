@@ -1,8 +1,45 @@
 import lxml.etree
 import lxml.html
+import uuid
 from shell import local
 import getpass
-from workflows.windows import baseimage
+from windows import windows_autoinst
+from workflows.windows import packages
+from util import util
+from pingback import pingback
+
+
+def get_diskvisor(diskvisor_type, *, shell):
+    if diskvisor_type == "VDiskManager":
+        from vm import vmware_vdiskmanager_backend
+        return vmware_vdiskmanager_backend.VMwareVDiskManagerBackend(shell)
+
+
+def parse_diskvisor_type(xml, *, shell):
+    disk_s = xml.xpath(".//Disk")
+    type_s = disk_s[0].xpath(".//Type")
+    diskvisor_type = type_s[0].text
+
+    location_s = disk_s[0].xpath(".//Location")
+    location = location_s[0].text
+
+    if diskvisor_type == "VDiskManager":
+        from vm import vmware_vdiskmanager_backend
+        return vmware_vdiskmanager_backend.VMwareVDiskManagerBackend(shell=shell, location=location)
+
+    if diskvisor_type == "LibVirtDisk":
+        from vm import libvirtdisk_backend
+
+        groups_s = disk_s[0].xpath(".//Group")
+        group = groups_s[0].text if len(groups_s) > 0 else None
+
+        perm_s = disk_s[0].xpath(".//Perms")
+        perm = perm_s[0].text if len(perm_s) > 0 else None
+
+        return libvirtdisk_backend.LibVirtDiskBackEnd(shell=shell, location=location, group=group, perms=perm)
+
+    raise Exception("Unknown diskvisor type:%s" % diskvisor_type)
+
 
 def get_hypervisor(hypervisor_type, *, shell):
     if hypervisor_type == "Fusion":
@@ -12,21 +49,7 @@ def get_hypervisor(hypervisor_type, *, shell):
     raise Exception("Unknown hypervisor type:%s" % hypervisor_type)
 
 
-def get_diskvisor(diskvisor_type, *, shell):
-    if diskvisor_type == "VDiskManager":
-        from vm import vmware_vdiskmanager_backend
-        return vmware_vdiskmanager_backend.VMwareVDiskManagerBackend(shell)
-
-    raise Exception("Unknown diskvisor type:%s" % diskvisor_type)
-
-
-def parse_diskvisor_type(xml):
-    disk_s = xml.xpath(".//Disk")
-    type_s = disk_s[0].xpath(".//Type")
-    return type_s[0].text
-
-
-def parse_hypervisor_type(xml):
+def parse_hypervisor_type(xml, *, shell):
     hypervisor_s = xml.xpath(".//Hypervisor")
     if len(hypervisor_s) is 0:
         raise Exception("Requires Hypervisor node")
@@ -35,13 +58,34 @@ def parse_hypervisor_type(xml):
     if len(hypervisor_s) is 0:
         raise Exception("Requires Hypervisor/Type node")
 
-    return type_s[0].text
+    if type_s[0].text == "Fusion":
+        from vm import vmware_run_backend
+        return vmware_run_backend.VMwareVMRunBackend(shell)
+
+    if type_s[0].text == "LibVirt":
+        uri_s = hypervisor_s[0].xpath(".//URI")
+        if len(uri_s) is 0:
+            raise Exception("LibVirt Requires Hypervisor/URI node")
+
+        from vm import libvirt_backend
+        return libvirt_backend.LibVirtBackEnd(uri_s[0].text)
+
+    raise Exception("Unknown hypervisor type:%s" % type_s[0].text)
 
 
 def get_shell(xml):
     shell_s = xml.xpath(".//Shell")
     if len(shell_s) == 0 or shell_s[0].text == 'Local':
         return local.LocalShell()
+
+    if shell_s[0].text == 'SSH':
+        shell_address_s = xml.xpath(".//ShellAddress")
+        if len(shell_address_s) == 0:
+            raise Exception("SSH shell requires ShellAddress")
+
+        from shell import ssh
+
+        return ssh.SSH(shell_address_s[0].text)
 
     raise Exception("Unknown shell type")
 
@@ -51,9 +95,21 @@ def parse_image_source(xml):
     if len(image_source_s) is 0:
         raise Exception("No Image/Source")
 
+    iso_drivers_s = xml.xpath(".//ISODrivers")
+    if len(iso_drivers_s) > 0:
+        iso_drivers = iso_drivers_s[0].text
+    else:
+        iso_drivers = None
+
+    template_s = xml.xpath(".//Template")
+    if len(template_s) > 0:
+        template = template_s[0].text
+    else:
+        raise Exception("Requires Build/Image/Source/Template")
+
     iso_s = xml.xpath(".//ISO")
     if len(iso_s) > 0:
-        return IsoSource(iso_s[0].text)
+        return WindowsIsoSource(iso=iso_s[0].text, iso_drivers=iso_drivers, template=template)
 
     raise Exception("Requires valid image source")
 
@@ -62,7 +118,24 @@ def parse_packages(xml):
     package_s = xml.xpath(".//Image/Packages/Package")
     packages = []
     for package_node in package_s:
-        packages += package_node.text
+        packages.append(package_node.text)
+
+    return packages
+
+
+def parse_remote(xml, *, admin_user, admin_password):
+    remote_s = xml.xpath(".//Image/Remote")
+    if len(remote_s) > 0:
+        remote = remote_s[0].text
+    else:
+        raise Exception("Requires Build/Image/Remote")
+
+    if remote == 'WinRS':
+        from remote import winrs
+        return winrs.WinRsRemote(host="", user=admin_user, auth=admin_password)
+
+    raise Exception("Unknown remote type:%s" % remote)
+
 
 def parse_admin_user(xml):
     password_s = xml.xpath(".//Image/Administrator/Password")
@@ -87,27 +160,77 @@ def parse_admin_user(xml):
 
     return password_s[0].text
 
-class IsoSource:
 
-    def __init__(self, iso):
+class WindowsIsoSource:
+
+    def __init__(self, *, iso, template, iso_drivers=None):
         self._iso = iso
+        self._iso_drivers = iso_drivers
+        self._template = template
+
+    def create(self, *, shell, cleanup, hypervisor, diskvisor, admin_password, vm_name, mac_address, vm_id, size_gb):
+        unattend = windows_autoinst.WindowsAutoInst(shell=shell, location=diskvisor.location,
+                                                    admin_password=admin_password, group=diskvisor.group,
+                                                    perms=diskvisor.perms)
+
+        floppy = unattend.winCreateFloppy(name=vm_name, pingback_ip=util.guess_local_ip())
+
+        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40)
+
+        cleanup.add(lambda: unattend.winDeleteFloppy(name=vm_name))
+
+        vm = hypervisor.vmCreate(template_name=self._template, vm_name=vm_name, iso=self._iso,
+                                 vm_location=diskvisor.location, iso_drivers=self._iso_drivers, mac_address=mac_address,
+                                 id=vm_id, disk_system=disk_system, floppy=floppy)
+
+        return vm
 
 
-def parse_config(file_name):
+def parse_config(file_name, *, keep_vm=True):
     # print(raw_xml)
-    xml = lxml.etree.parse(file_name)
-    shell = get_shell(xml)
+    with util.cleanup() as image_cleanup:
+        xml = lxml.etree.parse(file_name)
+        shell = get_shell(xml)
 
-    hypervisor_type = parse_hypervisor_type(xml)
-    hypervisor = get_hypervisor(hypervisor_type, shell=shell)
+        hypervisor = parse_hypervisor_type(xml, shell=shell)
 
-    diskvisor_type = parse_diskvisor_type(xml)
-    diskvisor = get_diskvisor(diskvisor_type, shell=shell)
+        diskvisor = parse_diskvisor_type(xml, shell=shell)
 
-    image_source = parse_image_source(xml)
-    package_list = parse_packages(xml)
+        image_source = parse_image_source(xml)
+        package_list = parse_packages(xml)
 
-    admin_password = parse_admin_user(xml)
+        admin_password = parse_admin_user(xml)
 
-    baseimage.build_windows_base_image(hypervisor, diskvisor_type, windows_autoinst, winrs_remote, disk_location,
-                                              40, iso, iso_drivers, packages, keep_vm=False)
+        remote = parse_remote(xml, admin_user="Administrator", admin_password=admin_password)
+
+        vm_id = str(uuid.uuid1())
+        vm_name = 'image_build-' + vm_id
+
+        mac_address = "FA:FA:FA:FA:FA:FA"
+
+        vm = image_source.create(shell=shell, cleanup=image_cleanup, hypervisor=hypervisor, diskvisor=diskvisor,
+                                 admin_password=admin_password, vm_name=vm_name, mac_address=mac_address, vm_id=vm_id,
+                                 size_gb=40)
+
+        vm.vmPowerOn()
+        if not keep_vm:
+            image_cleanup.add(lambda: vm.vmPowerOff())
+
+        print('buildImage:waiting for ping back')
+        pingback.start_server()
+        image_cleanup.add(lambda: pingback.stop_server())
+
+        if not util.wait_for(lambda: pingback.get_stored_ip(), time_out=600, operation_name="Waiting",
+                             wait_name="Pingback"):
+            print('buildImage:failed to get ping back')
+            return False
+
+        ip = pingback.get_stored_ip()
+
+        print("buildImage:ping back from %s" % ip)
+
+        remote.set_host(host=ip)
+
+        packages.install_packages(remote=remote, packages=package_list)
+
+        input("buildImage:Press Enter to continue...")
