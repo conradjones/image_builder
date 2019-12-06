@@ -10,6 +10,7 @@ class SSH:
 
     def execute_process(self, args, ignore_exit=False):
         command = " ".join(args)
+        print("Executing SSH:%s" % command)
         result = self._conn.run(command, hide=False)
         if result.exited is not 0 and not ignore_exit:
             raise Exception(
