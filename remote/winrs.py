@@ -254,3 +254,8 @@ class WinRsRemote:
     @property
     def client(self):
         return self._client
+
+    @property
+    def host(self):
+        return self._host
+
