@@ -116,9 +116,9 @@ def parse_image_source(xml):
 
 def parse_packages(xml):
     package_s = xml.xpath(".//Image/Packages/Package")
-    packages = []
+    packages = {}
     for package_node in package_s:
-        packages.append(package_node.text)
+        packages[package_node.text] = package_node.attrib
 
     return packages
 
@@ -135,6 +135,14 @@ def parse_remote(xml, *, admin_user, admin_password):
         return winrs.WinRsRemote(host="", user=admin_user, auth=admin_password)
 
     raise Exception("Unknown remote type:%s" % remote)
+
+
+def parse_dest(xml):
+    dest_s = xml.xpath(".//Image/Dest")
+    if len(dest_s) > 0:
+        return dest_s[0].text
+    else:
+        return None
 
 
 def parse_admin_user(xml):
@@ -168,20 +176,43 @@ class WindowsIsoSource:
         self._iso_drivers = iso_drivers
         self._template = template
 
-    def create(self, *, shell, cleanup, hypervisor, diskvisor, admin_password, vm_name, mac_address, vm_id, size_gb):
+    def create(self, *, shell, cleanup, hypervisor, diskvisor, admin_password, vm_name, mac_address, vm_id, size_gb,
+               keep_vm):
         unattend = windows_autoinst.WindowsAutoInst(shell=shell, location=diskvisor.location,
                                                     admin_password=admin_password, group=diskvisor.group,
                                                     perms=diskvisor.perms)
 
         floppy = unattend.winCreateFloppy(name=vm_name, pingback_ip=util.guess_local_ip())
+        if not keep_vm:
+            cleanup.add(lambda: unattend.winDeleteFloppy(name=vm_name))
 
         disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40)
-
-        cleanup.add(lambda: unattend.winDeleteFloppy(name=vm_name))
+        if not keep_vm:
+            cleanup.add(lambda: diskvisor.diskDelete(disk_name=disk_system))
 
         vm = hypervisor.vmCreate(template_name=self._template, vm_name=vm_name, iso=self._iso,
                                  vm_location=diskvisor.location, iso_drivers=self._iso_drivers, mac_address=mac_address,
                                  id=vm_id, disk_system=disk_system, floppy=floppy)
+
+        return vm
+
+
+class DiskImageSource:
+
+    def __init__(self, *, iso, template, iso_drivers=None):
+        self._iso = iso
+        self._iso_drivers = iso_drivers
+        self._template = template
+
+    def create(self, *, shell, cleanup, hypervisor, diskvisor, admin_password, vm_name, mac_address, vm_id, size_gb,
+               keep_vm):
+        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40)
+        if not keep_vm:
+            cleanup.add(lambda: diskvisor.diskDelete(disk_name=disk_system))
+
+        vm = hypervisor.vmCreate(template_name=self._template, vm_name=vm_name, iso=self._iso,
+                                 vm_location=diskvisor.location, iso_drivers=self._iso_drivers, mac_address=mac_address,
+                                 id=vm_id, disk_system=disk_system, floppy=None)
 
         return vm
 
@@ -199,6 +230,8 @@ def parse_config(file_name, *, keep_vm=True):
         image_source = parse_image_source(xml)
         package_list = parse_packages(xml)
 
+        dest = parse_dest(xml)
+
         admin_password = parse_admin_user(xml)
 
         remote = parse_remote(xml, admin_user="Administrator", admin_password=admin_password)
@@ -210,11 +243,14 @@ def parse_config(file_name, *, keep_vm=True):
 
         vm = image_source.create(shell=shell, cleanup=image_cleanup, hypervisor=hypervisor, diskvisor=diskvisor,
                                  admin_password=admin_password, vm_name=vm_name, mac_address=mac_address, vm_id=vm_id,
-                                 size_gb=40)
+                                 size_gb=40, keep_vm=keep_vm)
+
+        if not keep_vm:
+            image_cleanup.add(lambda: vm.vmDelete())
 
         vm.vmPowerOn()
         if not keep_vm:
-            image_cleanup.add(lambda: vm.vmPowerOff())
+            _power_off = image_cleanup.add(lambda: vm.vmPowerOff())
 
         print('buildImage:waiting for ping back')
         pingback.start_server()
@@ -233,4 +269,14 @@ def parse_config(file_name, *, keep_vm=True):
 
         packages.install_packages(remote=remote, packages=package_list)
 
-        input("buildImage:Press Enter to continue...")
+        #install.installJenkinsAgent(remote, "ci-windows-01",
+        #                            "64cfff370f305b3f8ea2b8bccd6530d46843888ae26e996fbdab321aa0402569",
+        #                            "http://192.168.1.25:8080")
+
+        vm.vmPowerOff()
+
+        if dest is not None:
+            diskvisor.diskCopy(vm.system_disk, dest)
+
+        if not keep_vm:
+            image_cleanup.remove(_power_off)
