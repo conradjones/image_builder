@@ -19,7 +19,8 @@ class VMwareVDiskManagerBackend:
     def diskCreate(self, *, disk_name, size_gb):
         if not self.diskValidateFreeSpace(self._location, size_gb):
             raise Exception('Not enough free space in:%s' % self._location)
-        target_disk = os.path.join(self._location, disk_name + ".vmdk")
+        self._shell.mkdir(os.path.join(self._location, disk_name))
+        target_disk = os.path.join(self._location, disk_name, disk_name + ".vmdk")
 
         self._shell.execute_process(
             [_vdiskmanager, '-c', '-t', '0', '-s', '%sGB' % size_gb, '-a', 'lsilogic', target_disk])
@@ -28,7 +29,7 @@ class VMwareVDiskManagerBackend:
 
     def diskDelete(self, disk_name):
         target_disk = os.path.join(self._location, disk_name)
-        self._shell.execute_process(['rm', '%s.vmdk' % target_disk])
+        self._shell.execute_process(['rm', '%s' % target_disk])
 
     @property
     def location(self):
