@@ -1,5 +1,3 @@
-from util import util
-import uuid
 
 
 def install_packages(*, remote, packages):
@@ -12,15 +10,13 @@ def install_packages(*, remote, packages):
         remote.remoteInstallWinstall()
 
         print('buildImage:installing packages')
-        for package in packages:
-            result = remote.remoteInstallPackage(package)
+        for package_name in packages.keys():
+            result = remote.remoteInstallPackage(package_name, packages[package_name])
             if "Reboot" not in result:
                 continue
 
             print('buildImage:reboot required, rebooting....')
             remote.remoteReboot()
-
-        input("buildImage:Press Enter to continue...")
 
         return True
 
