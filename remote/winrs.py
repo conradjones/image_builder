@@ -166,13 +166,14 @@ class WinRsRemote:
             print("-----> %s <-----" % log_file)
             print(log_file_text)
 
-    def remoteDetectPackage(self, package_name):
+    def remoteDetectPackage(self, package_name, parameters):
         print("remoteDetectPackage:%s" % package_name)
         remote_path = "c:\\.winstall\\packages\\%s" % package_name
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
             ps.add_script(self._installer_script) \
                 .add_parameter("ComponentPath", remote_path) \
+                .add_parameter("Parameters", parameters) \
                 .add_parameter("DetectOnly", True)
 
             ps.invoke()
@@ -217,7 +218,7 @@ class WinRsRemote:
 
         self.remoteReboot()
 
-        return self.remoteDetectPackage(package_name)
+        return self.remoteDetectPackage(package_name, parameters)
 
     def remoteWaitDeviceIsAwake(self):
         return util.wait_for(lambda: self.connect(), operation_name="remoteDeviceIsAwake",
