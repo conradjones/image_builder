@@ -7,6 +7,7 @@ from windows import windows_autoinst
 from workflows.windows import packages
 from util import util
 from pingback import pingback
+import random
 
 
 def get_diskvisor(diskvisor_type, *, shell):
@@ -111,6 +112,10 @@ def parse_image_source(xml):
     if len(iso_s) > 0:
         return WindowsIsoSource(iso=iso_s[0].text, iso_drivers=iso_drivers, template=template)
 
+    linked_clone_s = image_source_s[0].xpath(".//LinkedClone")
+    if len(linked_clone_s) > 0:
+        return DiskImageSource(parent_disk=linked_clone_s[0].text, template=template)
+
     raise Exception("Requires valid image source")
 
 
@@ -131,8 +136,11 @@ def parse_remote(xml, *, admin_user, admin_password):
         raise Exception("Requires Build/Image/Remote")
 
     if remote == 'WinRS':
+        host = ""
+        if 'Address' in remote_s[0].attrib:
+            host = remote_s[0].attrib['Address']
         from remote import winrs
-        return winrs.WinRsRemote(host="", user=admin_user, auth=admin_password)
+        return winrs.WinRsRemote(host=host, user=admin_user, auth=admin_password)
 
     raise Exception("Unknown remote type:%s" % remote)
 
@@ -141,6 +149,14 @@ def parse_dest(xml):
     dest_s = xml.xpath(".//Image/Dest")
     if len(dest_s) > 0:
         return dest_s[0].text
+    else:
+        return None
+
+
+def parse_macaddress(xml):
+    mac_address = xml.xpath(".//MacAddress")
+    if len(mac_address) > 0:
+        return mac_address[0].text
     else:
         return None
 
@@ -199,19 +215,18 @@ class WindowsIsoSource:
 
 class DiskImageSource:
 
-    def __init__(self, *, iso, template, iso_drivers=None):
-        self._iso = iso
-        self._iso_drivers = iso_drivers
+    def __init__(self, *, template, parent_disk):
         self._template = template
+        self._parent_disk = parent_disk
 
     def create(self, *, shell, cleanup, hypervisor, diskvisor, admin_password, vm_name, mac_address, vm_id, size_gb,
                keep_vm):
-        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40)
+        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40, parent_disk=self._parent_disk)
         if not keep_vm:
             cleanup.add(lambda: diskvisor.diskDelete(disk_name=disk_system))
 
-        vm = hypervisor.vmCreate(template_name=self._template, vm_name=vm_name, iso=self._iso,
-                                 vm_location=diskvisor.location, iso_drivers=self._iso_drivers, mac_address=mac_address,
+        vm = hypervisor.vmCreate(template_name=self._template, vm_name=vm_name, iso=None,
+                                 vm_location=diskvisor.location, iso_drivers=None, mac_address=mac_address,
                                  id=vm_id, disk_system=disk_system, floppy=None)
 
         return vm
@@ -239,7 +254,13 @@ def parse_config(file_name, *, keep_vm=True):
         vm_id = str(uuid.uuid1())
         vm_name = 'image_build-' + vm_id
 
-        mac_address = "FA:FA:FA:FA:FA:FA"
+        mac_address = parse_macaddress(xml)
+        if mac_address is None:
+            mac_address = "52:54:00:%02x:%02x:%02x" % (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255),
+            )
 
         vm = image_source.create(shell=shell, cleanup=image_cleanup, hypervisor=hypervisor, diskvisor=diskvisor,
                                  admin_password=admin_password, vm_name=vm_name, mac_address=mac_address, vm_id=vm_id,
@@ -252,31 +273,29 @@ def parse_config(file_name, *, keep_vm=True):
         if not keep_vm:
             _power_off = image_cleanup.add(lambda: vm.vmPowerOff())
 
-        print('buildImage:waiting for ping back')
-        pingback.start_server()
-        image_cleanup.add(lambda: pingback.stop_server())
+        if remote.host == "":
+            print('buildImage:waiting for ping back')
+            pingback.start_server()
+            image_cleanup.add(lambda: pingback.stop_server())
 
-        if not util.wait_for(lambda: pingback.get_stored_ip(), time_out=600, operation_name="Waiting",
-                             wait_name="Pingback"):
-            print('buildImage:failed to get ping back')
-            return False
+            if not util.wait_for(lambda: pingback.get_stored_ip(), time_out=600, operation_name="Waiting",
+                                 wait_name="Pingback"):
+                print('buildImage:failed to get ping back')
+                return False
 
-        ip = pingback.get_stored_ip()
+            ip = pingback.get_stored_ip()
 
-        print("buildImage:ping back from %s" % ip)
+            print("buildImage:ping back from %s" % ip)
 
-        remote.set_host(host=ip)
+            remote.set_host(host=ip)
 
         packages.install_packages(remote=remote, packages=package_list)
 
-        #install.installJenkinsAgent(remote, "ci-windows-01",
-        #                            "64cfff370f305b3f8ea2b8bccd6530d46843888ae26e996fbdab321aa0402569",
-        #                            "http://192.168.1.25:8080")
-
-        vm.vmPowerOff()
-
         if dest is not None:
+            vm.vmPowerOff()
+            image_cleanup.remove(_power_off)
             diskvisor.diskCopy(vm.system_disk, dest)
 
         if not keep_vm:
+            vm.vmPowerOff()
             image_cleanup.remove(_power_off)
