@@ -29,9 +29,11 @@ class LibVirtDiskBackEnd:
 
         return target_disk
 
-    def diskDelete(self, location, disk_name):
-        target_disk = os.path.join(location, disk_name)
-        self._shell.execute_process(['rm', '%s.qcow2' % target_disk])
+    def diskDelete(self, disk_name):
+        self._shell.execute_process(['rm', disk_name])
+
+    def diskCopy(self, source, dest):
+        self._shell.execute_process(['cp', source, dest])
 
     @property
     def location(self):
