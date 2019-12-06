@@ -29,14 +29,21 @@ def chdir(newdir):
 class Cleanup:
 
     def __init__(self):
-        self._cleanup_items = []
+        self._cleanup_items = {}
+        self._index = 0
 
     def add(self, cleanup_fn):
-        self._cleanup_items.append(cleanup_fn)
+        index = self._index
+        self._index += 1
+        self._cleanup_items[index] = cleanup_fn
+        return index
+
+    def remove(self, cleanup_fn):
+        del self._cleanup_items[cleanup_fn]
 
     def do_cleanup(self):
-        for cleanup_item in reversed(self._cleanup_items):
-            cleanup_item()
+        for cleanup_item in reversed(sorted(self._cleanup_items.keys())):
+            self._cleanup_items[cleanup_item]()
 
 
 @contextmanager
