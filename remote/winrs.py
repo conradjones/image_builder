@@ -16,20 +16,20 @@ def winRsGetWinstallFolder():
     return folder_path
 
 
-def _print_stream(stream):
+def print_stream(stream):
     for item in stream:
         print(str(item))
 
 
-def _print_error_stream(stream):
+def print_error_stream(stream):
     for item in stream:
         print(str(item))
         print(item.script_stacktrace)
 
 
-def _output_powershell_streams(ps):
-    _print_stream(ps.streams.verbose)
-    _print_error_stream(ps.streams.error)
+def output_powershell_streams(ps):
+    print_stream(ps.streams.verbose)
+    print_error_stream(ps.streams.error)
 
 
 class WinRsRemote:
@@ -86,10 +86,27 @@ class WinRsRemote:
             "if (Test-Path -Path \"%s\" -Verbose ) { Remove-Item -Path \"%s\" -Recurse -Force -Verbose }"
             % (folder_name, folder_name)
         )
-        _print_stream(streams.verbose)
+        print_stream(streams.verbose)
         if had_errors:
-            _print_stream(streams.error)
+            print_stream(streams.error)
             raise Exception("_remove_remote_folder:error removing:%s" % folder_name)
+
+    def put(self, source, remote):
+        client = Client(self._host, username=self._user, password=self._auth, ssl=False, connection_timeout=10)
+        client.copy(source, remote)
+
+    def mkdir(self, path):
+        with RunspacePool(self._client) as pool:
+            ps = PowerShell(pool)
+            ps.add_cmdlet("New-Item").add_parameter("Path", path) \
+                .add_parameter("Type", "Directory") \
+                .add_parameter("Verbose")
+
+            ps.invoke()
+            if ps.had_errors:
+                raise Exception(
+                    "mkdir:error creating:%s" % path)
+            print_stream(ps.streams.verbose)
 
     def _copy_package_to_remote(self, package_name):
         client = Client(self._host, username=self._user, password=self._auth, ssl=False, connection_timeout=10)
@@ -127,7 +144,7 @@ class WinRsRemote:
             if ps.had_errors:
                 raise Exception(
                     "_unzip_remote_package:error unzipping:%s to %s" % (remote_zip, "c:\\.winstall\\packages"))
-            _print_stream(ps.streams.verbose)
+            print_stream(ps.streams.verbose)
 
     def remoteCreateWinstallRoot(self):
         ps_script = self._get_powershell_script('create_winstall_root.ps1')
@@ -159,7 +176,7 @@ class WinRsRemote:
                 .add_parameter("DetectOnly", True)
 
             ps.invoke()
-            _output_powershell_streams(ps)
+            output_powershell_streams(ps)
             print("remoteInstallPackage:%s" % ps.output)
             if ps.had_errors or ps.output == ['Fail']:
                 self.handleFail(package_name)
@@ -167,7 +184,7 @@ class WinRsRemote:
 
             return ps.output
 
-    def remoteInstallPackage(self, package_name, *, no_reboot=False):
+    def remoteInstallPackage(self, package_name, parameters, *, no_reboot=False):
         print("remoteInstallPackage:%s" % package_name)
 
         remote_path = "c:\\.winstall\\packages\\%s" % package_name
@@ -182,11 +199,12 @@ class WinRsRemote:
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
             ps.add_script(self._installer_script) \
-                .add_parameter("ComponentPath", remote_path)
+                .add_parameter("ComponentPath", remote_path) \
+                .add_parameter("Parameters", parameters)
 
             ps.invoke()
 
-            _output_powershell_streams(ps)
+            output_powershell_streams(ps)
             print("remoteInstallPackage:%s" % ps.output)
             if ps.had_errors or ps.output == ['Fail']:
                 self.handleFail(package_name)
@@ -210,7 +228,7 @@ class WinRsRemote:
             ps = PowerShell(pool)
             ps.add_cmdlet("Restart-Computer").add_parameter("Force")
             ps.invoke()
-            _output_powershell_streams(ps)
+            output_powershell_streams(ps)
             if ps.had_errors:
                 raise Exception("remoteReboot:error rebooting")
 
@@ -231,3 +249,7 @@ class WinRsRemote:
             process.signal(SignalCode.CTRL_C)
             if process.rc != 0:
                 raise Exception("remoteSysprep:error calling sysprep")
+
+    @property
+    def client(self):
+        return self._client
