@@ -66,7 +66,7 @@
       <boot order="1"/>
       <address type="pci" controller="0" bus="0" target="0" unit="0"/>
     </disk>
-    {% if installerIso is defined %}
+    {% if installerIso is not none %}
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
       <source file="{{ installerIso }}"/>
@@ -77,7 +77,7 @@
       <address type="drive" controller="0" bus="0" target="0" unit="1"/>
     </disk>
   {% endif %}
-  {% if driversIso is defined %}
+  {% if driversIso is not none %}
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
       <source file="{{ driversIso }}"/>
@@ -87,7 +87,7 @@
       <address type="drive" controller="0" bus="0" target="0" unit="2"/>
     </disk>
     {% endif %}
-    {% if diskFloppy is defined %}
+    {% if diskFloppy is not none %}
     <disk type="file" device="floppy">
       <driver name="qemu" type="raw"/>
       <source file="{{ diskFloppy }}"/>
