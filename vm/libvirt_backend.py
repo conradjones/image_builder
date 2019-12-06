@@ -3,11 +3,13 @@ import lxml.etree
 import lxml.html
 import os
 from util import util
+from jinja2 import Template
 
 
 class LibVirtVM:
-    def __init__(self, dom):
+    def __init__(self, dom, disk_system):
         self._dom = dom
+        self._disk_system = disk_system
 
     def vmIsOff(self):
         state, reason = self._dom.state()
@@ -20,14 +22,16 @@ class LibVirtVM:
     def vmPowerOff(self):
         print("vmPowerOff:%s" % self._dom.name())
         self._dom.destroy()
-        util.wait_for(lambda: self.vmIsOff(), operation_name="destroy %s" % self._dom.name(), wait_name="shutdown state")
+        util.wait_for(lambda: self.vmIsOff(), operation_name="destroy %s" % self._dom.name(),
+                      wait_name="shutdown state")
 
     def vmPowerOn(self):
         print("vmPowerOn:%s" % self._dom.name())
         if not self.vmIsOff():
             raise Exception("VM:%s is already started" % self._dom.name())
         self._dom.create()
-        util.wait_for(lambda: self.vmIsOn(), operation_name="power on %s" % self._dom.name(), wait_name="powered on state")
+        util.wait_for(lambda: self.vmIsOn(), operation_name="power on %s" % self._dom.name(),
+                      wait_name="powered on state")
 
     def vmGetDisk(self, dev):
         raw_xml = self._dom.XMLDesc(0)
@@ -41,6 +45,10 @@ class LibVirtVM:
     def vmDelete(self):
         print("vmDelete:%s" % self._dom.name())
         self._dom.undefine()
+
+    @property
+    def system_disk(self):
+        return self._disk_system
 
 
 class LibVirtBackEnd:
@@ -65,23 +73,19 @@ class LibVirtBackEnd:
 
     def vmGetTemplate(self, vm_name):
         script_dir = os.path.dirname(__file__)
-        rel_path = "libvirt_templates/%s.xml" % vm_name
+        rel_path = "libvirt_templates/%s.j2.xml" % vm_name
         file_path = os.path.join(script_dir, rel_path)
-        file = open(file_path, "r")
-        return file.read()
+        with open(file_path, "r") as file:
+            return Template(file.read())
 
     def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, id, disk_system,
                  floppy):
         print("vmCreate:%s" % vm_name)
         template = self.vmGetTemplate(template_name)
-        template = template.replace('${DOMAIN_NAME}', vm_name)
-        template = template.replace('${DOMAIN_UUID}', id)
-        template = template.replace('${DISK_SYSTEM}', disk_system)
-        template = template.replace('${DISK_ISO}', iso)
-        template = template.replace('${DISK_DRIVERS}', iso_drivers)
-        template = template.replace('${MAC_ADDRESS}', mac_address)
-        template = template.replace('${DISK_FLOPPY}', floppy)
-        self._conn.defineXML(template)
-        return LibVirtVM(self.vmGet(vm_name, throw=True))
 
+        template = template.render(vmName=vm_name, vmId=id, diskSystem=disk_system, installerIso=iso,
+                                   driversIso=iso_drivers, macAddress=mac_address, diskFloppy=floppy)
+
+        self._conn.defineXML(template)
+        return LibVirtVM(self.vmGet(vm_name, throw=True), disk_system)
 
