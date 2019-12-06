@@ -5,6 +5,7 @@ from unittest.mock import call
 from vm import libvirt_backend
 from shell import local
 
+# NOTE THESE TESTS ARE NOT FINISHED AND NOT PARTICULARLY USEFUL YET
 
 @mock.patch('libvirt.open')
 def mock_open(name=None):

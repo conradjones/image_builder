@@ -4,6 +4,8 @@ from unittest.mock import call
 from vm import libvirtdisk_backend
 from shell import local
 
+# NOTE THESE TESTS ARE NOT FINISHED AND NOT PARTICULARLY USEFUL YET
+
 
 class LibVirtDiskBackEnd(unittest.TestCase):
     def test_diskCreate(self):

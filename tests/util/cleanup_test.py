@@ -1,6 +1,8 @@
 import unittest.mock
 from util import util
 
+# NOTE THESE TESTS ARE NOT FINISHED AND NOT PARTICULARLY USEFUL YET
+
 
 class CleanupTest(unittest.TestCase):
     def test_cleanup(self):
