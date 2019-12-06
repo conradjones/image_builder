@@ -33,7 +33,7 @@ class VMwareVMRunVM:
         return self._vmx_file() in stdout
 
     def vmPowerOff(self):
-        print("vmPowerOff:%s", self._vm_name)
+        print("vmPowerOff:%s" % self._vm_name)
 
         self._shell.execute_process(
             [_vmrun, '-T', _vmrun_type, 'stop', self._vmx_file()])
@@ -53,6 +53,8 @@ class VMwareVMRunVM:
 
     def vmDelete(self):
         print("vmDelete:%s" % self._vm_name)
+        self._shell.execute_process(
+            [_vmrun, '-T', _vmrun_type, 'deleteVM', self._vmx_file()])
 
 
 def vmGetTemplate(vm_name):
@@ -83,6 +85,8 @@ class VMwareVMRunBackend:
 
         vm_run_folder = _vm_run_folder(vm_location, vm_name)
         self._shell.mkdir(vm_run_folder)
+
+        ### TODO jinja template this.
 
         print("vmCreate:%s" % vm_name)
         template = vmGetTemplate(template_name)
