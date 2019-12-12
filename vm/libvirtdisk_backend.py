@@ -25,7 +25,9 @@ class LibVirtDiskBackEnd:
         if parent_disk is not None:
             args += ["-b", parent_disk, "-F", "qcow2"]
 
-        args += ['-f', 'qcow2', target_disk, '%sG' % size_gb]
+        args += ['-f', 'qcow2', target_disk]
+        if parent_disk is None:
+            args += ['%sG' % size_gb]
 
         self._shell.execute_process(args)
 
