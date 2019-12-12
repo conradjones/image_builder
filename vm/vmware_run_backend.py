@@ -15,10 +15,11 @@ def _vm_vmx_file(vm_location, vm_name):
     return os.path.join(vm_location, vm_name, '%s.vmx' % vm_name)
 
 class VMwareVMRunVM:
-    def __init__(self, shell, vm_location, vm_name):
+    def __init__(self, shell, vm_location, vm_name, disk_system):
         self._shell = shell
         self._vm_location = vm_location
         self._vm_name = vm_name
+        self._disk_system = disk_system
 
     def _vmx_file(self):
         return _vm_vmx_file(self._vm_location, self._vm_name)
@@ -53,9 +54,23 @@ class VMwareVMRunVM:
 
     def vmDelete(self):
         print("vmDelete:%s" % self._vm_name)
-        self._shell.execute_process(
-            [_vmrun, '-T', _vmrun_type, 'deleteVM', self._vmx_file()])
+        if not util.wait_for(lambda : not self.isLocked(), time_out=120, operation_name="VM Locked", wait_name="unlock"):
+            raise Exception("Timed out waiting for vmware to release lock file")
 
+        self._shell.rmdir(os.path.join(self._vm_location, self._vm_name), recurse=True)
+
+
+
+        #print(self._vmx_file())
+        #self._shell.execute_process(
+        #    [_vmrun, '-T', _vmrun_type, 'deleteVM', self._vmx_file()])
+
+    def isLocked(self):
+        lck_file = os.path.join(self._vm_location, self._vm_name + '.vmx.lck')
+        return os.path.isfile(lck_file)
+    @property
+    def system_disk(self):
+        return self._disk_system
 
 def vmGetTemplate(vm_name):
     script_dir = os.path.dirname(__file__)
@@ -101,6 +116,6 @@ class VMwareVMRunBackend:
         with open(vmx_file_path, "w+") as file:
             file.write(template)
 
-        return VMwareVMRunVM(self._shell, vm_location, vm_name)
+        return VMwareVMRunVM(self._shell, vm_location, vm_name, disk_system)
 
 
