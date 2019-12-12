@@ -1,15 +1,16 @@
 import json
-from steps import shell, vm_steps
+from steps import shell_steps, vm_steps, hypervisor_steps
 
 step_parser = {
-    "shell": shell.step_shell,
+    "shell": shell_steps.step_shell,
     "create_vm": vm_steps.step_create_vm,
     "delete_vm": vm_steps.step_delete_vm,
     "power_on_vm": vm_steps.step_power_on_vm,
-    "power_off_vm": vm_steps.step_power_off_vm
+    "power_off_vm": vm_steps.step_power_off_vm,
+    "hypervisor": hypervisor_steps.step_hypervisor
 }
 
-with open("../scratch/configs/build-ci-template.json") as file:
+with open("scratch/configs/build-ci-template.json") as file:
     data = json.loads(file.read())
 
 

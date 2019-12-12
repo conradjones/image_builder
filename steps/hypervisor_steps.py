@@ -1,7 +1,7 @@
 from steps import step_utils
 
 
-def libvirt_hypervisor(*, address):
+def libvirt_hypervisor(steps_state, *, address):
     from vm import libvirt_backend
     return libvirt_backend.LibVirtBackEnd(conn_string=address)
 
