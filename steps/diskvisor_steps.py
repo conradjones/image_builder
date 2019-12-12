@@ -16,3 +16,5 @@ def step_diskvisor(step_data, steps_state):
     step_utils.check_step_values(step_data, ['type'])
 
     steps_state.disks[step_data['name']] = step_utils.execute_map_step_type(diskvisor_types, step_data, steps_state)
+
+    return True
