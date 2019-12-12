@@ -31,6 +31,9 @@ class VMwareVDiskManagerBackend:
         target_disk = os.path.join(self._location, disk_name)
         self._shell.execute_process(['rm', '%s' % target_disk])
 
+    def diskCopy(self, source, dest):
+        self._shell.execute_process(['cp', source, dest])
+        
     @property
     def location(self):
         return self._location
