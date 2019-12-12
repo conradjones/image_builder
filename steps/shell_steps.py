@@ -6,8 +6,14 @@ def ssh_shell(steps_state, *, address):
     return ssh.SSH(conn_string=address)
 
 
+def local_shell(steps_state):
+    from shell import local
+    return local.LocalShell()
+
+
 shell_types = {
-    "ssh": ssh_shell
+    "ssh": ssh_shell,
+    "local": local_shell
 }
 
 
