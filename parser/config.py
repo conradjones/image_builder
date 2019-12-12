@@ -185,6 +185,22 @@ def parse_admin_user(xml):
     return password_s[0].text
 
 
+def parse_deploy(xml):
+    deploy_s = xml.xpath(".//Deploy")
+    if len(deploy_s) is 0:
+        return False
+
+    return True
+
+
+def parse_sysprep(xml):
+    sysprep_s = xml.xpath(".//Sysprep")
+    if len(sysprep_s) is 0:
+        return False
+
+    return True
+
+
 class WindowsIsoSource:
 
     def __init__(self, *, iso, template, iso_drivers=None):
@@ -202,7 +218,7 @@ class WindowsIsoSource:
         if not keep_vm:
             cleanup.add(lambda: unattend.winDeleteFloppy(name=vm_name))
 
-        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40)
+        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=size_gb)
         if not keep_vm:
             cleanup.add(lambda: diskvisor.diskDelete(disk_name=disk_system))
 
@@ -221,7 +237,7 @@ class DiskImageSource:
 
     def create(self, *, shell, cleanup, hypervisor, diskvisor, admin_password, vm_name, mac_address, vm_id, size_gb,
                keep_vm):
-        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=40, parent_disk=self._parent_disk)
+        disk_system = diskvisor.diskCreate(disk_name=vm_name, size_gb=size_gb, parent_disk=self._parent_disk)
         if not keep_vm:
             cleanup.add(lambda: diskvisor.diskDelete(disk_name=disk_system))
 
@@ -232,11 +248,16 @@ class DiskImageSource:
         return vm
 
 
-def parse_config(file_name, *, keep_vm=True):
+def parse_config(file_name):
     # print(raw_xml)
     with util.cleanup() as image_cleanup:
+
         xml = lxml.etree.parse(file_name)
         shell = get_shell(xml)
+
+        keep_vm = parse_deploy(xml)
+
+        sysprep = parse_sysprep(xml)
 
         hypervisor = parse_hypervisor_type(xml, shell=shell)
 
@@ -264,7 +285,7 @@ def parse_config(file_name, *, keep_vm=True):
 
         vm = image_source.create(shell=shell, cleanup=image_cleanup, hypervisor=hypervisor, diskvisor=diskvisor,
                                  admin_password=admin_password, vm_name=vm_name, mac_address=mac_address, vm_id=vm_id,
-                                 size_gb=40, keep_vm=keep_vm)
+                                 size_gb=120, keep_vm=keep_vm)
 
         if not keep_vm:
             image_cleanup.add(lambda: vm.vmDelete())
@@ -291,11 +312,20 @@ def parse_config(file_name, *, keep_vm=True):
 
         packages.install_packages(remote=remote, packages=package_list)
 
-        if dest is not None:
-            vm.vmPowerOff()
-            image_cleanup.remove(_power_off)
-            diskvisor.diskCopy(vm.system_disk, dest)
+        #input("Pause")
 
-        if not keep_vm:
-            vm.vmPowerOff()
+        # Janky AF if statements, tidy up when cleaning up XML parsing.
+        if sysprep:
+            remote.remoteSysprep()
             image_cleanup.remove(_power_off)
+            if dest is not None:
+                diskvisor.diskCopy(vm.system_disk, dest)
+        else:
+            if dest is not None:
+                vm.vmPowerOff()
+                image_cleanup.remove(_power_off)
+                diskvisor.diskCopy(vm.system_disk, dest)
+
+            if not keep_vm and dest is None:
+                vm.vmPowerOff()
+                image_cleanup.remove(_power_off)
