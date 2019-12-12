@@ -1,3 +1,6 @@
+from steps import step_utils
+
+
 def check_step_values(step_data, required_values):
     for required_value in required_values:
         if required_value not in step_data:
@@ -11,6 +14,8 @@ def check_step_parameters(step_data, required_parameters):
 
 
 def execute_map_step_type(types, step_data, steps_state):
+    step_utils.check_step_values(step_data, ['type'])
+
     step_type = step_data['type']
 
     if step_type not in types:
