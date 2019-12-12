@@ -1,5 +1,5 @@
 import json
-from steps import shell_steps, vm_steps, hypervisor_steps
+from steps import shell_steps, vm_steps, hypervisor_steps, diskvisor_steps, floppyimage_steps
 
 step_parser = {
     "shell": shell_steps.step_shell,
@@ -7,10 +7,12 @@ step_parser = {
     "delete_vm": vm_steps.step_delete_vm,
     "power_on_vm": vm_steps.step_power_on_vm,
     "power_off_vm": vm_steps.step_power_off_vm,
-    "hypervisor": hypervisor_steps.step_hypervisor
+    "hypervisor": hypervisor_steps.step_hypervisor,
+    "diskvisor": diskvisor_steps.step_diskvisor,
+    "floppy_image": floppyimage_steps.step_floppyimage
 }
 
-with open("scratch/configs/build-ci-template.json") as file:
+with open("scratch/configs/build-ci-template-fusion.json") as file:
     data = json.loads(file.read())
 
 
@@ -24,7 +26,12 @@ class step_state:
     def get_hypervisor(self, name):
         if name not in self.hypervisors:
             raise Exception('Hypervisor: %s does not exist' % name)
-        return self.hypervisors['name']
+        return self.hypervisors[name]
+
+    def get_shell(self, name):
+        if name not in self.shells:
+            raise Exception('Shell: %s does not exist' % name)
+        return self.shells[name]
 
 
 state = step_state()
