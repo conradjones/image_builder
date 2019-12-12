@@ -1,24 +1,18 @@
-import json
+from steps import step_utils
 
 
-def libvirt_hypervisor(*, address):
-    from vm import libvirt_backend
-    return libvirt_backend.LibVirtBackEnd(conn_string=address)
+def libvirt_diskvisor(steps_state, *, location, shell, group=None, perms=None):
+    from vm import libvirtdisk_backend
+    shell_obj = steps_state.shells[shell]
+    return libvirtdisk_backend.LibVirtDiskBackEnd(shell=shell_obj, location=location, group=group, perms=perms)
 
 
-hypervisor_types = {
-    "libvirt": libvirt_hypervisor
+diskvisor_types = {
+    "libvirt": libvirt_diskvisor
 }
 
 
-def step_hypervisor(step_data, steps_state):
-    if not 'type' in step_data:
-        raise Exception('Missing hypervisor type')
+def step_diskvisor(step_data, steps_state):
+    step_utils.check_step_values(step_data, ['type'])
 
-    hypervisor_type = step_data['type']
-
-    if not hypervisor_type in hypervisor_types:
-        raise Exception('Unknown hypervisor type:%s' % hypervisor_type)
-
-    steps_state[step_data['name']] = hypervisor_types[hypervisor_type](**step_data['parameters'])
-
+    steps_state.disks[step_data['name']] = step_utils.execute_map_step_type(diskvisor_types, step_data, steps_state)

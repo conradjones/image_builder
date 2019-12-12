@@ -1,25 +1,27 @@
-import json
+from steps import step_utils
+import os
+from util import util
 
 
-def libvirt_diskvisor(steps_state, *, location, shell, group=None, perms=None):
-    from vm import libvirtdisk_backend
+def windows_auto_install_floppyimage(steps_state, *, ping_back=True, administrator_password, shell, file, group=None,
+                                     perms=None):
+    from windows import windows_autoinst
     shell_obj = steps_state.shells[shell]
-    return libvirtdisk_backend.LibVirtDiskBackEnd(shell=shell_obj, location=location, group=group, perms=perms)
+
+    unattend = windows_autoinst.WindowsAutoInst(shell=shell_obj, location=os.path.dirname(file),
+                                                admin_password=administrator_password, group=group,
+                                                perms=perms)
+
+    return unattend.winCreateFloppy(name=os.path.basename(file), pingback_ip=util.guess_local_ip())
 
 
-diskvisor_types = {
-    "libvirt": libvirt_diskvisor
+floppyimage_types = {
+    "windows_auto_install": windows_auto_install_floppyimage
 }
 
 
-def step_diskvisor(step_data, steps_state):
-    if not 'type' in step_data:
-        raise Exception('Missing diskvisor type')
+def step_floppyimage(step_data, steps_state):
+    step_utils.check_step_values(step_data, ['type'])
 
-    diskvisor_type = step_data['type']
-
-    if not diskvisor_type in diskvisor_types:
-        raise Exception('Unknown diskvisor type:%s' % diskvisor_type)
-
-    steps_state[step_data['name']] = diskvisor_types[diskvisor_type](steps_state, **step_data['parameters'])
-
+    steps_state.disks[step_data['floppy_images']] = step_utils.execute_map_step_type(floppyimage_types, step_data,
+                                                                                     steps_state)

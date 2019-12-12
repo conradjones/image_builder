@@ -1,32 +1,12 @@
 import json
-
-
-def ssh_shell(*, address):
-    from shell import ssh
-    return ssh.SSH(conn_string=address)
-
-
-shell_types = {
-    "ssh": ssh_shell
-}
-
-
-def step_shell(step_data, steps_state):
-    if not 'type' in step_data:
-        raise Exception('Missing shell type')
-
-    shell_type = step_data['type']
-
-    if not shell_type in shell_types:
-        raise Exception('Unknown shell type:%s' % shell_type)
-
-    steps_state[step_data['name']] = shell_types[shell_type](**step_data['parameters'])
-
-
-
+from steps import shell, vm_steps
 
 step_parser = {
-    "shell": step_shell
+    "shell": shell.step_shell,
+    "create_vm": vm_steps.step_create_vm,
+    "delete_vm": vm_steps.step_delete_vm,
+    "power_on_vm": vm_steps.step_power_on_vm,
+    "power_off_vm": vm_steps.step_power_off_vm
 }
 
 with open("../scratch/configs/build-ci-template.json") as file:
@@ -36,17 +16,25 @@ with open("../scratch/configs/build-ci-template.json") as file:
 class step_state:
     def __init__(self):
         self.shells = {}
+        self.hypervisors = {}
+        self.disks = {}
+        self.floppy_images = {}
+
+    def get_hypervisor(self, name):
+        if name not in self.hypervisors:
+            raise Exception('Hypervisor: %s does not exist' % name)
+        return self.hypervisors['name']
 
 
 state = step_state()
 
 for step in data['steps']:
 
-    if not 'step' in step:
+    if 'step' not in step:
         raise Exception('Missing step type')
 
     step_type = step['step']
-    if not step_type in step_parser:
+    if step_type not in step_parser:
         raise Exception('Unknown step type:%s' % step_type)
 
     if not step_parser[step_type](step, state):

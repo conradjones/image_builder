@@ -1,12 +1,19 @@
+def check_step_values(step_data, required_values):
+    for required_value in required_values:
+        if required_value not in step_data:
+            raise Exception('Missing %s' % required_value)
 
-def step_poweron_vm(step_data, steps_state):
-    if not 'hypervisor' in step_data:
-        raise Exception('Missing hypervisor type')
 
-    diskvisor_type = step_data['type']
+def check_step_parameters(step_data, required_parameters):
+    for required_parameter in required_parameters:
+        if required_parameter not in step_data['parameters']:
+            raise Exception('Missing parameter %s' % required_parameter)
 
-    if not diskvisor_type in diskvisor_types:
-        raise Exception('Unknown diskvisor type:%s' % diskvisor_type)
 
-    steps_state[step_data['name']] = diskvisor_types[diskvisor_type](steps_state, **step_data['parameters'])
+def execute_map_step_type(types, step_data, steps_state):
+    step_type = step_data['type']
 
+    if step_type not in types:
+        raise Exception('Unknown %s type:%s' % (step_data['step'], step_type))
+
+    return types[step_type](steps_state, **step_data['parameters'])

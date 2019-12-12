@@ -1,25 +1,37 @@
-import json
+from steps import step_utils
 
 
-def libvirt_diskvisor(steps_state, *, location, shell, group=None, perms=None):
-    from vm import libvirtdisk_backend
-    shell_obj = steps_state.shells[shell]
-    return libvirtdisk_backend.LibVirtDiskBackEnd(shell=shell_obj, location=location, group=group, perms=perms)
+def step_create_vm(step_data, steps_state):
+    step_utils.check_step_values(step_data, ['hypervisor', 'vm-name'])
+
+    hypervisor = steps_state.get_hypervisor(step_data['hypervisor'])
+
+    vm = hypervisor.vmGet(step_data['vm-name'], throw=True)
+    vm.vmPowerOn()
 
 
-diskvisor_types = {
-    "libvirt": libvirt_diskvisor
-}
+def step_power_on_vm(step_data, steps_state):
+    step_utils.check_step_values(step_data, ['hypervisor', 'vm-name'])
+
+    hypervisor = steps_state.get_hypervisor(step_data['hypervisor'])
+
+    vm = hypervisor.vmGet(step_data['vm-name'], throw=True)
+    vm.vmPowerOn()
 
 
-def step_diskvisor(step_data, steps_state):
-    if not 'type' in step_data:
-        raise Exception('Missing diskvisor type')
+def step_power_off_vm(step_data, steps_state):
+    step_utils.check_step_values(step_data, ['hypervisor', 'vm-name'])
 
-    diskvisor_type = step_data['type']
+    hypervisor = steps_state.get_hypervisor(step_data['hypervisor'])
 
-    if not diskvisor_type in diskvisor_types:
-        raise Exception('Unknown diskvisor type:%s' % diskvisor_type)
+    vm = hypervisor.vmGet(step_data['vm-name'], throw=True)
+    vm.vmPowerOff()
 
-    steps_state[step_data['name']] = diskvisor_types[diskvisor_type](steps_state, **step_data['parameters'])
 
+def step_delete_vm(step_data, steps_state):
+    step_utils.check_step_values(step_data, ['hypervisor', 'vm-name'])
+
+    hypervisor = steps_state.get_hypervisor(step_data['hypervisor'])
+
+    vm = hypervisor.vmGet(step_data['vm-name'], throw=True)
+    vm.vmDelete()
