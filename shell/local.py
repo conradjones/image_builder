@@ -1,6 +1,7 @@
 import subprocess
 import shutil
 import os
+import fnmatch
 
 
 class LocalShell:
@@ -27,3 +28,24 @@ class LocalShell:
             shutil.rmtree(folder)
         else:
             os.rmdir(folder)
+
+    def _file_match(self, filename, excludes):
+        for exclude in excludes:
+            if fnmatch.fnmatch(filename, exclude):
+                return True
+        return False
+
+    def rmdir_contents(self, folder, excludes=[]):
+        for filename in os.listdir(folder):
+            if self._file_match(filename, excludes):
+                continue
+
+            file_path = os.path.join(folder, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
