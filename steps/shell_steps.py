@@ -1,12 +1,12 @@
 from steps import step_utils
 
 
-def ssh_shell(steps_state, *, address):
+def ssh_shell(steps_state, step_data, *, address):
     from shell import ssh
     return ssh.SSH(conn_string=address)
 
 
-def local_shell(steps_state):
+def local_shell(steps_state, step_data):
     from shell import local
     return local.LocalShell()
 
@@ -20,5 +20,5 @@ shell_types = {
 def step_shell(step_data, steps_state):
     step_utils.check_step_values(step_data, ['type'])
 
-    steps_state.shells[step_data['name']] = step_utils.execute_map_step_type(shell_types, step_data, steps_state)
+    steps_state.set_item('shells', step_data['name'], step_utils.execute_map_step_type(shell_types, step_data, steps_state))
     return True

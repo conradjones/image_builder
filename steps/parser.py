@@ -1,16 +1,15 @@
 import json
+import re
 from steps import shell_steps, vm_steps, hypervisor_steps, diskvisor_steps, floppyimage_steps, disk_steps
 
 step_parser = {
     "shell": shell_steps.step_shell,
-    "create_vm": vm_steps.step_create_vm,
-    "delete_vm": vm_steps.step_delete_vm,
-    "power_on_vm": vm_steps.step_power_on_vm,
-    "power_off_vm": vm_steps.step_power_off_vm,
+    "vm": vm_steps.step_vm,
     "hypervisor": hypervisor_steps.step_hypervisor,
     "diskvisor": diskvisor_steps.step_diskvisor,
     "floppy_image": floppyimage_steps.step_floppyimage,
     "create_disk": disk_steps.step_create_disk,
+
 }
 
 with open("scratch/configs/build-ci-template-fusion.json") as file:
@@ -18,27 +17,52 @@ with open("scratch/configs/build-ci-template-fusion.json") as file:
 
 
 class step_state:
+
+    def _init_store(self, name):
+        self.stores[name] = {}
+
     def __init__(self):
-        self.shells = {}
-        self.diskvisors = {}
-        self.hypervisors = {}
-        self.disks = {}
-        self.floppy_images = {}
+        self.stores = {}
+        for name in ['shells', 'diskvisors', 'hypervisors', 'disks', 'floppy_images', 'vms']:
+            self._init_store(name)
 
-    def get_hypervisor(self, name):
-        if name not in self.hypervisors:
-            raise Exception('Hypervisor: %s does not exist' % name)
-        return self.hypervisors[name]
+    def get_item(self, store, name):
+        if store not in self.stores:
+            raise Exception('Unknown store type:%s' % store)
 
-    def get_diskvisor(self, name):
-        if name not in self.diskvisors:
-            raise Exception('Diskvisor: %s does not exist' % name)
-        return self.diskvisors[name]
+        return self.stores[store][name]
 
-    def get_shell(self, name):
-        if name not in self.shells:
-            raise Exception('Shell: %s does not exist' % name)
-        return self.shells[name]
+    def set_item(self, store, name, item):
+        if store not in self.stores:
+            raise Exception('Unknown store type:%s' % store)
+
+        self.stores[store][name] = item
+
+    def parse_single_item(self, valid, source_string):
+        find_components = re.compile('\\${([A-Za-z0-9_\-]+):([A-Za-z0-9_\-]+)}')
+        variables = find_components.findall(source_string)
+        if len(variables) > 0:
+            store, name = variables[0]
+            if store not in valid:
+                raise Exception("%s not valid in %s" % (store, source_string))
+            return self.get_item(store, name)
+
+        return source_string
+
+    def parse_string(self, source):
+
+        find_variable = re.compile('(\\${([A-Za-z0-9_\\-]+):([A-Za-z0-9_\\-]+)})')
+        variables = find_variable.findall(source)
+
+        for full, store, name in variables:
+            print(store)
+            print(name)
+
+            if store not in self.stores:
+                raise Exception('Unknown store type:%s' % store)
+
+            if store not in self.stores:
+                raise Exception('Unknown store type:%s' % store)
 
 
 state = step_state()

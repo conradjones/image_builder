@@ -2,6 +2,8 @@ import libvirt
 import lxml.etree
 import lxml.html
 import os
+import random
+import uuid
 from util import util
 from jinja2 import Template
 
@@ -78,14 +80,23 @@ class LibVirtBackEnd:
         with open(file_path, "r") as file:
             return Template(file.read())
 
-    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, id, disk_system,
+    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address=None, vm_id=None,
+                 disk_system,
                  floppy):
         print("vmCreate:%s" % vm_name)
         template = self.vmGetTemplate(template_name)
 
-        template = template.render(vmName=vm_name, vmId=id, diskSystem=disk_system, installerIso=iso,
+        if mac_address is None:
+            mac_address = "52:54:00:%02x:%02x:%02x" % (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255),
+            )
+        if vm_id is None:
+            vm_id = str(uuid.uuid1())
+
+        template = template.render(vmName=vm_name, vmId=vm_id, diskSystem=disk_system, installerIso=iso,
                                    driversIso=iso_drivers, macAddress=mac_address, diskFloppy=floppy)
 
         self._conn.defineXML(template)
         return LibVirtVM(self.vmGet(vm_name, throw=True), disk_system)
-

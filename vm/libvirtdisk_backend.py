@@ -1,6 +1,5 @@
 import os
 
-
 class LibVirtDiskBackEnd:
 
     def __init__(self, *, shell, location, group=None, perms=None):

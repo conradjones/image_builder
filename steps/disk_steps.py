@@ -5,12 +5,12 @@ def step_create_disk(step_data, steps_state):
     step_utils.check_step_values(step_data, ['diskvisor', 'name'])
     step_utils.check_step_parameters(step_data, ['disk-name', 'size-gb'])
 
-    diskvisor = steps_state.get_diskvisor(step_data['diskvisor'])
+    diskvisor = steps_state.get_item('diskvisors', step_data['diskvisor'])
 
     disk_system = diskvisor.diskCreate(disk_name=step_data['parameters']['disk-name'],
                                        size_gb=step_data['parameters']['size-gb'])
 
-    steps_state.disks[step_data['name']] = disk_system
+    steps_state.set_item('disks', step_data['name'], disk_system)
     return True
 
 

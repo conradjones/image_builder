@@ -1,5 +1,8 @@
 import os
+import uuid
+import random
 from util import util
+from jinja2 import Template
 
 # todo add platform specific checks and look instead of presume location
 
@@ -7,12 +10,13 @@ _vmrun = "/Applications/VMware Fusion.app/Contents/Library/vmrun"
 _vmrun_type = "fusion"
 
 
-
 def _vm_run_folder(vm_location, vm_name):
     return os.path.join(vm_location, vm_name)
 
+
 def _vm_vmx_file(vm_location, vm_name):
     return os.path.join(vm_location, vm_name, '%s.vmx' % vm_name)
+
 
 class VMwareVMRunVM:
     def __init__(self, shell, vm_location, vm_name, disk_system):
@@ -54,23 +58,23 @@ class VMwareVMRunVM:
 
     def vmDelete(self):
         print("vmDelete:%s" % self._vm_name)
-        if not util.wait_for(lambda : not self.isLocked(), time_out=120, operation_name="VM Locked", wait_name="unlock"):
+        if not util.wait_for(lambda: not self.isLocked(), time_out=120, operation_name="VM Locked", wait_name="unlock"):
             raise Exception("Timed out waiting for vmware to release lock file")
 
         self._shell.rmdir(os.path.join(self._vm_location, self._vm_name), recurse=True)
 
-
-
-        #print(self._vmx_file())
-        #self._shell.execute_process(
+        # print(self._vmx_file())
+        # self._shell.execute_process(
         #    [_vmrun, '-T', _vmrun_type, 'deleteVM', self._vmx_file()])
 
     def isLocked(self):
         lck_file = os.path.join(self._vm_location, self._vm_name + '.vmx.lck')
         return os.path.isfile(lck_file)
+
     @property
     def system_disk(self):
         return self._disk_system
+
 
 def vmGetTemplate(vm_name):
     script_dir = os.path.dirname(__file__)
@@ -80,11 +84,17 @@ def vmGetTemplate(vm_name):
     return file.read()
 
 
-
 class VMwareVMRunBackend:
 
     def __init__(self, shell):
         self._shell = shell
+
+    def vmGetTemplate(self, vm_name):
+        script_dir = os.path.dirname(__file__)
+        rel_path = "vmx_templates/%s.j2.vmx" % vm_name
+        file_path = os.path.join(script_dir, rel_path)
+        with open(file_path, "r") as file:
+            return Template(file.read())
 
     def vmGet(self, vm_location, vm_name):
         if not self.vmExists(vm_location, vm_name):
@@ -95,27 +105,33 @@ class VMwareVMRunBackend:
         vmx_file_path = os.path.join(vm_location, vm_name, '%s.vmx' % vm_name)
         return os.path.isfile(vmx_file_path)
 
-    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, id, disk_system,
+    def vmCreate(self, *, template_name, vm_location, vm_name, iso, iso_drivers, mac_address, vm_id, disk_system,
                  floppy):
 
         vm_run_folder = _vm_run_folder(vm_location, vm_name)
         self._shell.mkdir(vm_run_folder)
 
+        if vm_id is None:
+            vm_id = str(uuid.uuid1())
+
+        if mac_address is None:
+            mac_address = "00:50:56:%02x:%02x:%02x" % (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255),
+            )
+
         ### TODO jinja template this.
+        template = self.vmGetTemplate(template_name)
+
+        template = template.render(vmName=vm_name, vmId=vm_id, diskSystem=disk_system, installerIso=iso,
+                                   driversIso=iso_drivers, macAddress=mac_address, diskFloppy=floppy)
+
 
         print("vmCreate:%s" % vm_name)
-        template = vmGetTemplate(template_name)
-        template = template.replace('${VM_NAME}', vm_name)
-        template = template.replace('${DOMAIN_UUID}', id)
-        template = template.replace('${DISK_SYSTEM}', disk_system)
-        template = template.replace('${DISK_ISO}', iso)
-        template = template.replace('${DISK_DRIVERS}', iso_drivers)
-        template = template.replace('${MAC_ADDRESS}', mac_address)
-        template = template.replace('${DISK_FLOPPY}', floppy)
+
         vmx_file_path = os.path.join(vm_run_folder, '%s.vmx' % vm_name)
         with open(vmx_file_path, "w+") as file:
             file.write(template)
 
         return VMwareVMRunVM(self._shell, vm_location, vm_name, disk_system)
-
-
