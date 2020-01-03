@@ -1,6 +1,7 @@
 import json
 import re
-from steps import shell_steps, vm_steps, hypervisor_steps, diskvisor_steps, floppyimage_steps, disk_steps
+from steps import shell_steps, vm_steps, hypervisor_steps, diskvisor_steps, floppyimage_steps, disk_steps, \
+    pingback_steps
 
 step_parser = {
     "shell": shell_steps.step_shell,
@@ -9,7 +10,7 @@ step_parser = {
     "diskvisor": diskvisor_steps.step_diskvisor,
     "floppy_image": floppyimage_steps.step_floppyimage,
     "create_disk": disk_steps.step_create_disk,
-
+    "pingback": pingback_steps.step_pingback
 }
 
 with open("scratch/configs/build-ci-template-fusion.json") as file:
@@ -23,7 +24,7 @@ class step_state:
 
     def __init__(self):
         self.stores = {}
-        for name in ['shells', 'diskvisors', 'hypervisors', 'disks', 'floppy_images', 'vms']:
+        for name in ['shells', 'diskvisors', 'hypervisors', 'disks', 'floppy_images', 'vms', 'pingback']:
             self._init_store(name)
 
     def get_item(self, store, name):

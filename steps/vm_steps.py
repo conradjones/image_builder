@@ -19,7 +19,7 @@ def create_vm(steps_state, step_data, *, template_name, vm_location, vm_name, is
 
 def power_on_vm(steps_state, step_data):
     step_utils.check_step_values(step_data, ['name'])
-    vm = steps_state.get_vm(step_data['name'])
+    vm = steps_state.get_item('vms', step_data['name'])
     vm.vmPowerOn()
 
 
