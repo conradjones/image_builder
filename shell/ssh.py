@@ -12,7 +12,7 @@ class SSH:
         command = " ".join(args)
         print("Executing SSH:%s" % command)
         result = self._conn.run(command, hide=False)
-        if result.exited is not 0 and not ignore_exit:
+        if result.exited != 0 and not ignore_exit:
             raise Exception(
                 "%s returned exit code :%s\n%s" % (" ".join(args), result.exited, result.stderr))
         return result.exited, result.stdout, result.stderr
