@@ -186,5 +186,5 @@
       <address type="pci" domain="0x0000" bus="0x05" slot="0x00" function="0x0"/>
     </memballoon>
   </devices>
-  <seclabel type="dynamic" model="apparmor" relabel="yes"/>
+<!--  <seclabel type="dynamic" model="apparmor" relabel="yes"/> -->
 </domain>

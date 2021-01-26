@@ -21,20 +21,20 @@ def build_windows_base_image(vm_backend, disk_backend, windows_autoinst, winrs, 
         vm_id = str(uuid.uuid1())
         vm_name = 'image_build-' + vm_id
 
-        disk_backend.diskCreate(disk_location, vm_name, size_gb)
+        disk_backend.diskCreate(vm_name, size_gb)
         base_image_cleanup.add(lambda: disk_backend.diskDelete(disk_location, vm_name))
 
         host_ip = _guess_local_ip()
         print("buildImage:local ip %s" % host_ip)
 
-        floppy = windows_autoinst.winCreateFloppy(disk_location, vm_name, host_ip)
+        floppy = windows_autoinst.winCreateFloppy(name=vm_name, pingback_ip=host_ip)
         base_image_cleanup.add(lambda: windows_autoinst.winDeleteFloppy(disk_location, vm_name))
 
         mac_address = 'FA:FA:FA:FA:FA:FA'
         '''template_name, vm_name, vm_location, iso, iso_drivers, mac_address, id, disk_location,
                  disk_name, floppy'''
         vm = vm_backend.vmCreate(template_name='WindowsTemplate', vm_location=disk_location, vm_name=vm_name, iso=iso, iso_drivers=iso_drivers,
-                            mac_address=mac_address, id=vm_id, disk_location=disk_location, disk_name=vm_name,
+                            mac_address=mac_address, vm_id=vm_id, disk_location=disk_location, disk_name=vm_name,
                          floppy=floppy)
 
         if not keep_vm:
