@@ -44,6 +44,12 @@ class LibVirtDiskBackEnd:
     def diskCopy(self, source, dest):
         self._shell.execute_process(['cp', source, dest])
 
+        if self._group:
+            self._shell.execute_process(['chgrp', self._group, dest])
+
+        if self._perms:
+            self._shell.execute_process(['chmod', self._perms, dest])
+
     @property
     def location(self):
         return self._location

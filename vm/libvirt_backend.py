@@ -6,7 +6,7 @@ import random
 import uuid
 from util import util
 from jinja2 import Template
-
+import time
 
 class LibVirtVM:
     def __init__(self, dom, disk_system):
@@ -34,6 +34,39 @@ class LibVirtVM:
         self._dom.create()
         util.wait_for(lambda: self.vmIsOn(), operation_name="power on %s" % self._dom.name(),
                       wait_name="powered on state")
+    def vmShutDown(self, timeout=80):
+
+        elapsed_seconds = 0
+
+
+
+        while not self._dom.state()[0] == libvirt.VIR_DOMAIN_SHUTOFF:
+            # issuing ACPI shutdown a few times can sometimes convince windows guests
+            # to take the request seriously instead of displaying "really shutdown?"
+            # on the virtual machines console.
+            try:
+                self._dom.shutdownFlags(
+                    libvirt.VIR_DOMAIN_SHUTDOWN_GUEST_AGENT | libvirt.VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN)
+            except libvirt.libvirtError as err:
+                # we have a race condition between checking for VIR_DOMAIN_SHUTOFF
+                # and issuing the shutdown request.
+                # unfortunately, "libvirtError" is all we get in that case.
+                time.sleep(1)
+                if self._dom.state()[0] == libvirt.VIR_DOMAIN_SHUTOFF:
+                    # if the domain is in SHUTOFF now, we assume all went well
+                    pass
+                else:
+                    # if not, re-raise
+                    raise
+            time.sleep(1)
+            elapsed_seconds += 1
+            if elapsed_seconds == timeout:
+                # graceful as in "send sigterm to qemu-kvm", this is still akin to yanking the virtual power cord
+                self._dom.destroyFlags(libvirt.VIR_DOMAIN_DESTROY_GRACEFUL)
+                print(' had to yank the virtual powercord')
+        print('shutdown took {} seconds'.format(elapsed_seconds))
+
+
 
     def vmGetDisk(self, dev):
         raw_xml = self._dom.XMLDesc(0)
