@@ -40,10 +40,8 @@ class PingBack:
             self.srv.shutdown()
 
     def start_server(self):
-        self.server
         self.server = PingBack.ServerThread(self.flask_app)
         self.server.start()
 
     def stop_server(self):
-        self. server
         self.server.shutdown()
