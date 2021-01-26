@@ -52,11 +52,11 @@ def get_hypervisor(hypervisor_type, *, shell):
 
 def parse_hypervisor_type(xml, *, shell):
     hypervisor_s = xml.xpath(".//Hypervisor")
-    if len(hypervisor_s) is 0:
+    if len(hypervisor_s) == 0:
         raise Exception("Requires Hypervisor node")
 
     type_s = hypervisor_s[0].xpath(".//Type")
-    if len(hypervisor_s) is 0:
+    if len(hypervisor_s) == 0:
         raise Exception("Requires Hypervisor/Type node")
 
     if type_s[0].text == "Fusion":
@@ -65,7 +65,7 @@ def parse_hypervisor_type(xml, *, shell):
 
     if type_s[0].text == "LibVirt":
         uri_s = hypervisor_s[0].xpath(".//URI")
-        if len(uri_s) is 0:
+        if len(uri_s) == 0:
             raise Exception("LibVirt Requires Hypervisor/URI node")
 
         from vm import libvirt_backend
@@ -90,10 +90,18 @@ def get_shell(xml):
 
     raise Exception("Unknown shell type")
 
+def parse_dest(xml):
+    dest_s = xml.xpath(".//Image/Dest")
+    if len(dest_s) > 0:
+        return dest_s[0].text
+    else:
+        raise Exception("Requires Image/Dest node")
+
+
 
 def parse_image_source(xml):
     image_source_s = xml.xpath(".//Image/Source")
-    if len(image_source_s) is 0:
+    if len(image_source_s) == 0:
         raise Exception("No Image/Source")
 
     iso_drivers_s = xml.xpath(".//ISODrivers")
@@ -145,13 +153,6 @@ def parse_remote(xml, *, admin_user, admin_password):
     raise Exception("Unknown remote type:%s" % remote)
 
 
-def parse_dest(xml):
-    dest_s = xml.xpath(".//Image/Dest")
-    if len(dest_s) > 0:
-        return dest_s[0].text
-    else:
-        return None
-
 
 def parse_macaddress(xml):
     mac_address = xml.xpath(".//MacAddress")
@@ -163,7 +164,7 @@ def parse_macaddress(xml):
 
 def parse_admin_user(xml):
     password_s = xml.xpath(".//Image/Administrator/Password")
-    if len(password_s) is 0:
+    if len(password_s) == 0:
         raise Exception("Requires Image/Administrator/Password node")
 
     if password_s[0].text == '*':
@@ -187,7 +188,7 @@ def parse_admin_user(xml):
 
 def parse_deploy(xml):
     deploy_s = xml.xpath(".//Deploy")
-    if len(deploy_s) is 0:
+    if len(deploy_s) == 0:
         return False
 
     return True
@@ -195,7 +196,7 @@ def parse_deploy(xml):
 
 def parse_sysprep(xml):
     sysprep_s = xml.xpath(".//Sysprep")
-    if len(sysprep_s) is 0:
+    if len(sysprep_s) == 0:
         return False
 
     return True
@@ -224,7 +225,7 @@ class WindowsIsoSource:
 
         vm = hypervisor.vmCreate(template_name=self._template, vm_name=vm_name, iso=self._iso,
                                  vm_location=diskvisor.location, iso_drivers=self._iso_drivers, mac_address=mac_address,
-                                 id=vm_id, disk_system=disk_system, floppy=floppy)
+                                 vm_id=vm_id, disk_system=disk_system, floppy=floppy)
 
         return vm
 
@@ -268,6 +269,8 @@ def parse_config(file_name):
 
         dest = parse_dest(xml)
 
+        print(dest)
+
         admin_password = parse_admin_user(xml)
 
         remote = parse_remote(xml, admin_user="Administrator", admin_password=admin_password)
@@ -295,16 +298,17 @@ def parse_config(file_name):
             _power_off = image_cleanup.add(lambda: vm.vmPowerOff())
 
         if remote.host == "":
+            pb = pingback.PingBack()
             print('buildImage:waiting for ping back')
-            pingback.start_server()
-            image_cleanup.add(lambda: pingback.stop_server())
+            pb.start_server()
+            image_cleanup.add(lambda: pb.stop_server())
 
-            if not util.wait_for(lambda: pingback.get_stored_ip(), time_out=600, operation_name="Waiting",
+            if not util.wait_for(lambda: pb.get_stored_ip(), time_out=600, operation_name="Waiting",
                                  wait_name="Pingback"):
                 print('buildImage:failed to get ping back')
                 return False
 
-            ip = pingback.get_stored_ip()
+            ip = pb.get_stored_ip()
 
             print("buildImage:ping back from %s" % ip)
 
@@ -312,7 +316,7 @@ def parse_config(file_name):
 
         packages.install_packages(remote=remote, packages=package_list)
 
-        #input("Pause")
+        print(dest)
 
         # Janky AF if statements, tidy up when cleaning up XML parsing.
         if sysprep:
@@ -322,10 +326,10 @@ def parse_config(file_name):
                 diskvisor.diskCopy(vm.system_disk, dest)
         else:
             if dest is not None:
-                vm.vmPowerOff()
+                vm.vmShutDown()
                 image_cleanup.remove(_power_off)
                 diskvisor.diskCopy(vm.system_disk, dest)
 
             if not keep_vm and dest is None:
-                vm.vmPowerOff()
+                vm.vmShutDown()
                 image_cleanup.remove(_power_off)
